@@ -1,5 +1,4 @@
-﻿using System.CommandLine;
-using System.CommandLine.IO;
+﻿using System.Text;
 using DicomTools.DataModel;
 using FellowOakDicom;
 using FellowOakDicom.Network;
@@ -10,12 +9,20 @@ namespace DicomTools.Retrieve
 {
     internal class DicomQueryRetrieve
     {
-        internal DicomQueryRetrieve(ILogger logger, IConsole console, string hostName, int hostPort, string callingAet, string calledAet)
+        internal DicomQueryRetrieve(ILogger logger, StoreService storeService, RetrieveOptions retrieveOptions)
         {
             m_logger = logger;
-            m_console = console;
 
-            m_client = DicomClientFactory.Create(hostName, hostPort, useTls: false, callingAe: callingAet, calledAe: calledAet);
+            m_client = DicomClientFactory.Create(retrieveOptions.HostName, retrieveOptions.HostPort, useTls: false, callingAe: retrieveOptions.CallingAet, calledAe: retrieveOptions.CalledAet);
+            if (retrieveOptions.UseGet)
+            {
+                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.CTImageStorage));
+                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTStructureSetStorage));
+                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTPlanStorage));
+                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTDoseStorage));
+                m_client.OnCStoreRequest += storeService.OnCStoreRequestAsync;
+            }
+
             m_client.NegotiateAsyncOps();
         }
 
@@ -36,13 +43,7 @@ namespace DicomTools.Retrieve
                 }
                 else
                 {
-                    // TODO: Adapt
-                    m_logger.LogError($"Patient" +
-                              $"{response.Dataset.GetSingleValueOrDefault(DicomTag.PatientName, string.Empty)}," +
-                              $"{(response.Dataset.TryGetString(DicomTag.ModalitiesInStudy, out var dummy)
-                                  ? dummy : string.Empty)}-Study from" +
-                              $"{response.Dataset.GetSingleValueOrDefault(DicomTag.StudyDate, new DateTime())} with UID" +
-                              $"{response.Dataset.GetSingleValueOrDefault(DicomTag.StudyInstanceUID, string.Empty)} ");
+                    m_logger.LogError(response.ToString());
                 }
             };
             await m_client.AddRequestAsync(findRequest);
@@ -62,7 +63,6 @@ namespace DicomTools.Retrieve
                 {
                     var series = Series.Create(response.Dataset);
                     listOfSeries.Add(series);
-                    m_console.Out.WriteLine(series.ToString());
                 }
                 else if (response.Status == DicomStatus.Success)
                 {
@@ -70,17 +70,21 @@ namespace DicomTools.Retrieve
                 }
                 else
                 {
-                    // TODO: Adapt
-                    m_logger.LogError($"Patient" +
-                              $"{response.Dataset.GetSingleValueOrDefault(DicomTag.PatientName, string.Empty)}," +
-                              $"{(response.Dataset.TryGetString(DicomTag.ModalitiesInStudy, out var dummy)
-                                  ? dummy : string.Empty)}-Study from" +
-                              $"{response.Dataset.GetSingleValueOrDefault(DicomTag.StudyDate, new DateTime())} with UID" +
-                              $"{response.Dataset.GetSingleValueOrDefault(DicomTag.StudyInstanceUID, string.Empty)} ");
+                    m_logger.LogError(response.ToString());
                 }
             };
             await m_client.AddRequestAsync(findRequest);
             await m_client.SendAsync();
+
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                var messageBuilder = new StringBuilder();
+                foreach (var series in listOfSeries)
+                {
+                    messageBuilder.AppendLine($"Found series: {series.Modality}, {series.InstanceUid.UID}");
+                }
+                m_logger.LogInformation(messageBuilder.ToString());
+            }
 
             return listOfSeries;
         }
@@ -91,8 +95,13 @@ namespace DicomTools.Retrieve
             var completedRequests = 0;
             moveRequest.OnResponseReceived += (request, response) =>
             {
+                if (response.Status == DicomStatus.Pending)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else if (response.Status == DicomStatus.Success)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else
+                    m_logger.LogError(response.ToString());
                 completedRequests = response.Completed;
-                m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
             };
             await m_client.AddRequestAsync(moveRequest);
             await m_client.SendAsync();
@@ -104,9 +113,54 @@ namespace DicomTools.Retrieve
             var moveRequest = new DicomCMoveRequest(m_client.CallingAe, series.StudyInstanceUid.UID, series.InstanceUid.UID);
             moveRequest.OnResponseReceived += (request, response) =>
             {
-                m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                if (response.Status == DicomStatus.Pending)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else if (response.Status == DicomStatus.Success)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else
+                    m_logger.LogError(response.ToString());
             };
             await m_client.AddRequestAsync(moveRequest);
+            await m_client.SendAsync();
+        }
+
+        public async Task<int> Get(Study study)
+        {
+            var getRequest = new DicomCGetRequest(study.InstanceUid.UID);
+            var completedRequests = 0;
+            getRequest.OnResponseReceived += (request, response) =>
+            {
+                if (response.Status == DicomStatus.Pending)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else if (response.Status == DicomStatus.Success)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else
+                    m_logger.LogError(response.ToString());
+                completedRequests = response.Completed;
+            };
+
+            await m_client.AddRequestAsync(getRequest);
+            await m_client.SendAsync();
+            return completedRequests;
+        }
+
+        public async Task Get(Series series)
+        {
+            m_logger.LogInformation($"Get series: {series.Modality}, {series.InstanceUid.UID}");
+
+            var getRequest = new DicomCGetRequest(series.StudyInstanceUid.UID, series.InstanceUid.UID);
+
+            getRequest.OnResponseReceived += (request, response) =>
+            {
+                if (response.Status == DicomStatus.Pending)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else if (response.Status == DicomStatus.Success)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else
+                    m_logger.LogError(response.ToString());
+            };
+
+            await m_client.AddRequestAsync(getRequest);
             await m_client.SendAsync();
         }
 
@@ -153,8 +207,6 @@ namespace DicomTools.Retrieve
         }
 
         private readonly ILogger m_logger;
-
-        private readonly IConsole m_console;
 
         private readonly IDicomClient m_client;
     }

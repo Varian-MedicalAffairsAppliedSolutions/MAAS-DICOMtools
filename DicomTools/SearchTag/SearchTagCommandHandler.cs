@@ -27,6 +27,16 @@ namespace DicomTools.SearchTag
                     dicomTags.Add(dicomTag.Value);
                 }
 
+                if (m_logger.IsEnabled(LogLevel.Information))
+                {
+                    foreach (var tag in dicomTags)
+                    {
+                        var tagPath = tag.Item1.Select(t => t.ToString()).ToArray();
+                        var tagPathString = string.Join("/", tagPath);
+                        m_logger.LogInformation($"{tagPathString}={tag.Item2}");
+                    }
+                }
+ 
                 var fileFoundCount = 0;
                 var fileTotalCount = 0;
                 var (_, filesFound) = FindFromFiles(m_logger, m_console, path, searchPattern,

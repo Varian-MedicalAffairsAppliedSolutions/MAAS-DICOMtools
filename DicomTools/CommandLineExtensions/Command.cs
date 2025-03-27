@@ -13,6 +13,29 @@ namespace DicomTools.CommandLineExtensions
             Handler = CommandHandler.Create<TOptions, IServiceProvider, CancellationToken>(HandleOptions);
         }
 
+        protected Option<T> AddOption<T>(string name, string description, bool isRequired, T? defaultValue)
+        {
+            var option = new Option<T>(name, description)
+            {
+                IsRequired = isRequired
+            };
+            if (defaultValue != null)
+            {
+                if (defaultValue is string stringValue)
+                {
+                    if (!string.IsNullOrEmpty(stringValue))
+                        option.SetDefaultValue(stringValue);
+                }
+                else
+                {
+                    option.SetDefaultValue(defaultValue);
+                }
+            }
+
+            AddOption(option);
+            return option;
+        }
+
         private static async Task<int> HandleOptions(TOptions options, IServiceProvider serviceProvider,
             CancellationToken cancellationToken)
         {
