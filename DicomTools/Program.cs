@@ -17,12 +17,18 @@ namespace DicomTools
     {
         static async Task<int> Main(string[] args)
         {
+            var currentDirectory = Environment.CurrentDirectory;
+
+            var configuration = new ConfigurationBuilder()
+                .AddJsonFile(Path.Combine(currentDirectory, "options.json"), optional: true)
+                .Build();
+
             var rootCommand = new RootCommand(description: "DicomTools contains 4 different Dicom tools.")
             {
-                new RetrieveCommand(),
-                new StoreCommand(),
-                new SearchTagCommand(),
-                new ShowCommand()
+                new RetrieveCommand(configuration.GetSection("RetrieveOptions").Get<RetrieveOptions>()),
+                new StoreCommand(configuration.GetSection("StoreOptions").Get<StoreOptions>()),
+                new SearchTagCommand(configuration.GetSection("SearchTagOptions").Get<SearchTagOptions>()),
+                new ShowCommand(configuration.GetSection("ShowOptions").Get<ShowOptions>())
             };
 
             // Use Host.CreateDefaultBuilder as CommandLineBuilder.UseHost does not initialize
@@ -35,8 +41,9 @@ namespace DicomTools
                 .ConfigureServices(services =>
                 {
                     services.AddSingleton<DicomAnonymizer>();
-                    services.AddSingleton<DicomStorageRetrieveOptions>();
-                    services.AddHostedService<DicomStoreService>();
+                    services.AddSingleton<RetrieveOptions>();  // This is used as singleton to pass options to StoreService.
+                    services.AddSingleton<StoreService>();
+                    services.AddHostedService<DicomStoreHostedService>();
                     services.AddFellowOakDicom();
                     services.AddTransient<IConfirmationService, ConfirmationService>();
                 });

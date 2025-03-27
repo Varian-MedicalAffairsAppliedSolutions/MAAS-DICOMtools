@@ -28,7 +28,7 @@ namespace DicomTools.Store
             if (!string.IsNullOrEmpty(statusFileName))
             {
                 if (File.Exists(statusFileName))
-                    statusLines = new HashSet<string>(await File.ReadAllLinesAsync(statusFileName));
+                    statusLines = [.. await File.ReadAllLinesAsync(statusFileName)];
             }
 
             foreach (var planTreeItem in treeItems.Plans)

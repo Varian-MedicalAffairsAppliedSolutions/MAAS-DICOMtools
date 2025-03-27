@@ -2,7 +2,7 @@
 
 namespace DicomTools.Retrieve
 {
-    public class DicomStorageRetrieveOptions : ICommandOptions
+    public class RetrieveOptions : ICommandOptions
     {
         public string PatientId { get; set; } = string.Empty;
 
@@ -20,21 +20,8 @@ namespace DicomTools.Retrieve
 
         public bool ShowTree { get; set; }
 
-        public void CopyFrom(DicomStorageRetrieveOptions other)
-        {
-            PatientId = other.PatientId;
-            PlanId = other.PlanId;
-            OnlyApprovedPlans = other.OnlyApprovedPlans;
-            NewPatientId = other.NewPatientId;
-            NewPatientName = other.NewPatientName;
-            Anonymize = other.Anonymize;
-            Path = other.Path;
-            ShowTree = other.ShowTree;
-        }
-    }
+        public bool UseGet { get; set; }
 
-    public class RetrieveOptions : DicomStorageRetrieveOptions
-    {
         public string HostName { get; set; } = string.Empty;
 
         public int HostPort { get; set; }
@@ -42,5 +29,22 @@ namespace DicomTools.Retrieve
         public string CallingAet { get; set; } = string.Empty;
 
         public string CalledAet { get; set; } = string.Empty;
+
+        public void CopyTo(RetrieveOptions other)
+        {
+            other.PatientId = PatientId;
+            other.PlanId = PlanId;
+            other.OnlyApprovedPlans = OnlyApprovedPlans;
+            other.NewPatientId = NewPatientId;
+            other.NewPatientName = NewPatientName;
+            other.Anonymize = Anonymize;
+            other.Path = Path;
+            other.ShowTree = ShowTree;
+            other.UseGet = UseGet;
+            other.HostName = HostName;
+            other.HostPort = HostPort;
+            other.CallingAet = CallingAet;
+            other.CalledAet = CalledAet;
+        }
     }
 }

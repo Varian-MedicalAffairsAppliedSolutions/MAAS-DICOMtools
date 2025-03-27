@@ -8,6 +8,8 @@ namespace DicomTools.Store
 
         public string SearchPattern { get; set; } = string.Empty;
 
+        public bool ShowOptions { get; set; }
+
         public string HostName { get; set; } = string.Empty;
 
         public int HostPort { get; set; }

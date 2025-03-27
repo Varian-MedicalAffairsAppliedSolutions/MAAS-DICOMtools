@@ -1,9 +1,13 @@
-﻿# DicomTools
+﻿# DicomTools 1.1
 
 DicomTools is built using .NET 8, which may need to be installed.
 It uses [https://github.com/fo-dicom/fo-dicom](fo-dicom) library to handle DICOM communication and files.
 At the moment there's no dependency on ESAPI. All commands, except search, create a reference tree having RT-Plans as root elements.
 Data not connected to any plan is managed as well and called unconnected. All commands handle multiple patient's data, except retrieve.
+
+## New in V1.1
+Added C-GET support to retrieve command to avoid incoming C-STORE requests coming from different connection.
+Added options.json handling. More in Configuration chapter.
 
 
 ## Usage
@@ -49,6 +53,7 @@ Data not connected to any plan is managed as well and called unconnected. All co
       --hostPort <hostPort> (REQUIRED)      Port number of the Dicom Services configuration.
       --callingAet <callingAet> (REQUIRED)  AET of the sender.
       --calledAet <calledAet> (REQUIRED)    AET of the Dicom Services.
+      --useGet                              Use C-GET instead of C-MOVE. [default: False]
       -?, -h, --help                        Show help and usage information
 
 Retrieve command calls DICOM SCP (like Varian Dicom DB service) and uses DICOM Query/Retrieve to fetch all DICOM data of the given patient.
@@ -131,6 +136,39 @@ files found and shows the result as a flat list or as a tree (default).
 
 ## Configuration
 You can configure various settings in configuration file **appsettings.json**.
+
+## options.json
+You can create a options.json file into the directory where you are running the tools. Default values for all command line options are read from that file.
+
+Here's an example:
+```
+{
+  "RetrieveOptions": {
+    "HostPort": 4242,
+    "CallingAet": "MYAET",
+    "CalledAet": "SCPAET",
+    "ShowTree": true,
+    "HostName": "localhost",
+    "UseGet": false
+  },
+  "SearchTagOptions": {
+    "Tag": [
+      "(300A,00B0)/(300A,00B2)=?"
+    ],
+    "Path": "C:\\Temp\\DICOM\\FileDicomExport"
+  },
+  "ShowOptions": {
+    "Path": "C:\\Temp\\DICOM\\FileDicomExport"
+  },
+  "StoreOptions": {
+    "Path": "C:\\Temp\\DICOM\\FileDicomExport",
+    "HostName": "localhost",
+    "HostPort": 4242,
+    "CallingAet": "MYAET",
+    "CalledAet": "SCPAET"
+  }
+}
+```
 
 #### Logging
 Currently all logs are only shown in console. You can change the log level in appsettings.json to get more information if something is not working as expected.
