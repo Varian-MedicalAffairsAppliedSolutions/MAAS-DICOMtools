@@ -1,0 +1,54 @@
+name: Build MAAS-DicomTools
+
+on:
+  workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        env:
+            PROJECT_NAME: MAAS-DicomTools
+            BUILD_NUMBER: ${{ github.run_number }}
+
+        steps:
+
+        - name: Get Current Date
+          id: currentDate
+          uses: Kaven-Universe/github-action-current-date-time@v1
+          with:
+            format: "MM/DD/YYYY"
+
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Setup .NET 8.x
+          uses: actions/setup-dotnet@v4
+          with:
+            dotnet-version: '8.x'
+
+        - name: Install dependencies
+          run: dotnet restore
+
+        - name: Build
+          run: dotnet build --no-restore --configuration Release
+        
+        - name: Install zip
+          uses: montudor/action-zip@v1
+        
+        - name: Zip
+          run: zip -qq -r maas-dicomtools.zip .
+          working-directory: ./DicomTools/bin/Release/net8.0
+
+        - name: Create Release
+          uses: softprops/action-gh-release@v2.0.9
+          with:
+            name: V1.0
+            tag_name: V1.0-${{ env.BUILD_NUMBER }}
+            token: ${{ secrets.GITHUB_TOKEN }}
+            draft: false
+            prerelease: false
+            body: |
+                This is an official release of the **`${{ env.PROJECT_NAME }}`** project. Generated on `${{ steps.currentDate.outputs.time }}`.
+                Supported .NET version: `8.0`.                
+            files: ./DicomTools/bin/Release/net8.0/maas-dicomtools.zip
