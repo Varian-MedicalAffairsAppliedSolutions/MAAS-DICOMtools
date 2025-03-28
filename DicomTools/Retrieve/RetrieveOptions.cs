@@ -30,6 +30,8 @@ namespace DicomTools.Retrieve
 
         public string CalledAet { get; set; } = string.Empty;
 
+        public bool UseTls { get; set; }
+
         public void CopyTo(RetrieveOptions other)
         {
             other.PatientId = PatientId;
@@ -45,6 +47,7 @@ namespace DicomTools.Retrieve
             other.HostPort = HostPort;
             other.CallingAet = CallingAet;
             other.CalledAet = CalledAet;
+            other.UseTls = UseTls;
         }
     }
 }

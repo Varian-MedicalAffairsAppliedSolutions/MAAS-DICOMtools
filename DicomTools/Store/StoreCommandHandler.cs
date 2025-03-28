@@ -11,39 +11,47 @@ namespace DicomTools.Store
     {
         public async Task<int> HandleAsync(StoreOptions options, CancellationToken cancellationToken)
         {
-            var machineMapping = new Dictionary<string, string>();
-            foreach (var mapping in options.MachineMapping)
+            try
             {
-                var keyValuePair = mapping.Split('=');
-                machineMapping.Add(keyValuePair[0], keyValuePair[1]);
-            }
-            var defaultMachinesByModel = new Dictionary<string, string>();
-            foreach (var defaultMachine in options.DefaultMachines)
-            {
-                var keyValuePair = defaultMachine.Split('=');
-                defaultMachinesByModel.Add(keyValuePair[0], keyValuePair[1]);
-            }
-
-            var collectedPatientSeries = FileCollector.CollectFiles(m_logger, m_console, options.Path, options.SearchPattern, machineMapping, defaultMachinesByModel);
-
-            var dicomStore = new DicomStore(m_logger, m_console, options.HostName, options.HostPort, options.CallingAet, options.CalledAet);
-            foreach (var patientSeries in collectedPatientSeries)
-            {
-                var referenceTree = ReferenceTree.Create(m_logger, m_console, patientSeries.CollectedSeries);
-                try
+                var machineMapping = new Dictionary<string, string>();
+                foreach (var mapping in options.MachineMapping)
                 {
-                    m_console.Out.WriteLine($"Patient: {patientSeries.PatientId}");
-                    m_console.Out.WriteLine(referenceTree.ToString());
-                    await dicomStore.SendReferenceTree(referenceTree, options.StatusFileName);
+                    var keyValuePair = mapping.Split('=');
+                    machineMapping.Add(keyValuePair[0], keyValuePair[1]);
                 }
-                catch (Exception e)
+                var defaultMachinesByModel = new Dictionary<string, string>();
+                foreach (var defaultMachine in options.DefaultMachines)
                 {
-                    Console.WriteLine(e);
-                    throw;
+                    var keyValuePair = defaultMachine.Split('=');
+                    defaultMachinesByModel.Add(keyValuePair[0], keyValuePair[1]);
                 }
-            }
 
-            return 0;
+                var collectedPatientSeries = FileCollector.CollectFiles(m_logger, m_console, options.Path, options.SearchPattern, machineMapping, defaultMachinesByModel);
+
+                var dicomStore = new DicomStore(m_logger, m_console, options.HostName, options.HostPort, options.CallingAet, options.CalledAet);
+                foreach (var patientSeries in collectedPatientSeries)
+                {
+                    var referenceTree = ReferenceTree.Create(m_logger, m_console, patientSeries.CollectedSeries);
+                    try
+                    {
+                        m_console.Out.WriteLine($"Patient: {patientSeries.PatientId}");
+                        m_console.Out.WriteLine(referenceTree.ToString());
+                        await dicomStore.SendReferenceTree(referenceTree, options.StatusFileName);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        throw;
+                    }
+                }
+
+                return await Task.FromResult(0);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(ex.Message);
+                return await Task.FromResult(1);
+            }
         }
     }
 }

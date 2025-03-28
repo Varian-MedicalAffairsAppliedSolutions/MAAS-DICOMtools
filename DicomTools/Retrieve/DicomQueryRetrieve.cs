@@ -3,6 +3,7 @@ using DicomTools.DataModel;
 using FellowOakDicom;
 using FellowOakDicom.Network;
 using FellowOakDicom.Network.Client;
+using FellowOakDicom.Network.Tls;
 using Microsoft.Extensions.Logging;
 
 namespace DicomTools.Retrieve
@@ -12,18 +13,46 @@ namespace DicomTools.Retrieve
         internal DicomQueryRetrieve(ILogger logger, StoreService storeService, RetrieveOptions retrieveOptions)
         {
             m_logger = logger;
+            m_client = CreateDicomClient(storeService, retrieveOptions);
+        }
 
-            m_client = DicomClientFactory.Create(retrieveOptions.HostName, retrieveOptions.HostPort, useTls: false, callingAe: retrieveOptions.CallingAet, calledAe: retrieveOptions.CalledAet);
-            if (retrieveOptions.UseGet)
+        private static IDicomClient CreateDicomClient(StoreService storeService, RetrieveOptions retrieveOptions)
+        {
+            IDicomClient client;
+
+            if (retrieveOptions.UseTls)
             {
-                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.CTImageStorage));
-                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTStructureSetStorage));
-                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTPlanStorage));
-                m_client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTDoseStorage));
-                m_client.OnCStoreRequest += storeService.OnCStoreRequestAsync;
+                var tlsInitiator = new DefaultTlsInitiator
+                {
+                    IgnoreSslPolicyErrors = true,
+                    CheckCertificateRevocation = false,
+                    CertificateValidationCallback = (sender, certificate, chain, errors) => true,    // TODO: Add proper certificate validation
+                };
+                client = DicomClientFactory.Create(retrieveOptions.HostName, retrieveOptions.HostPort, tlsInitiator,
+                    callingAe: retrieveOptions.CallingAet, calledAe: retrieveOptions.CalledAet);
+            }
+            else
+            {
+                client = DicomClientFactory.Create(retrieveOptions.HostName, retrieveOptions.HostPort, useTls: false,
+                    callingAe: retrieveOptions.CallingAet, calledAe: retrieveOptions.CalledAet);
             }
 
-            m_client.NegotiateAsyncOps();
+
+            if (retrieveOptions.UseGet)
+            {
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.CTImageStorage));
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.MRImageStorage));
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.PositronEmissionTomographyImageStorage));
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTStructureSetStorage));
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTPlanStorage));
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTDoseStorage));
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.RTImageStorage));
+                client.AdditionalPresentationContexts.Add(DicomPresentationContext.GetScpRolePresentationContext(DicomUID.SpatialRegistrationStorage));
+                client.OnCStoreRequest += storeService.OnCStoreRequestAsync;
+            }
+
+            client.NegotiateAsyncOps();
+            return client;
         }
 
         internal async Task<List<Study>> FindStudies(string patientId)
