@@ -43,8 +43,8 @@ jobs:
         - name: Create Release
           uses: softprops/action-gh-release@v2.0.9
           with:
-            name: V1.1
-            tag_name: V1.1-${{ env.BUILD_NUMBER }}
+            name: V1.2
+            tag_name: V1.2-${{ env.BUILD_NUMBER }}
             token: ${{ secrets.GITHUB_TOKEN }}
             draft: false
             prerelease: false

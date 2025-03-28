@@ -1,13 +1,17 @@
-﻿# DicomTools 1.1
+﻿# DicomTools 1.2
 
 DicomTools is built using .NET 8, which may need to be installed.
 It uses [https://github.com/fo-dicom/fo-dicom](fo-dicom) library to handle DICOM communication and files.
 At the moment there's no dependency on ESAPI. All commands, except search, create a reference tree having RT-Plans as root elements.
 Data not connected to any plan is managed as well and called unconnected. All commands handle multiple patient's data, except retrieve.
 
+## New in V1.2
+- Added TLS option to retrieve command to work with secure DICOM (C-GET).
+- Note that ARIA DICOM Services do not support C-MOVE with secure DICOM.
+
 ## New in V1.1
-Added C-GET support to retrieve command to avoid incoming C-STORE requests coming from different connection.
-Added options.json handling. More in Configuration chapter.
+- Added C-GET support to retrieve command to avoid incoming C-STORE requests coming from different connection.
+- Added options.json handling. More in Configuration chapter.
 
 
 ## Usage
@@ -46,14 +50,15 @@ Added options.json handling. More in Configuration chapter.
       --onlyApprovedPlans                   Retrieve only approved plans.
       --newPatientId <newPatientId>         New patient id for the saved data.
       --newPatientName <newPatientName>     New patient name for the saved data.
-      --anonymize                           Anonymize all the saved data.
+      --anonymize                           Anonymize all the saved data. [default: False]
       --path <path> (REQUIRED)              Path where to export files.
-      --showTree                            Shows the retrieved data as a tree.
+      --showTree                            Shows the retrieved data as a tree. [default: False]
       --hostName <hostName> (REQUIRED)      Name of the Dicom Service host.
       --hostPort <hostPort> (REQUIRED)      Port number of the Dicom Services configuration.
       --callingAet <callingAet> (REQUIRED)  AET of the sender.
       --calledAet <calledAet> (REQUIRED)    AET of the Dicom Services.
       --useGet                              Use C-GET instead of C-MOVE. [default: False]
+      --useTls                              Use TLS when connecting. [default: False]
       -?, -h, --help                        Show help and usage information
 
 Retrieve command calls DICOM SCP (like Varian Dicom DB service) and uses DICOM Query/Retrieve to fetch all DICOM data of the given patient.
