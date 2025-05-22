@@ -5,7 +5,7 @@ on:
 
 jobs:
     build:
-        runs-on: ubuntu-latest
+        runs-on: windows-latest
 
         env:
             PROJECT_NAME: MAAS-DicomTools
@@ -32,13 +32,9 @@ jobs:
 
         - name: Build
           run: dotnet build --no-restore --configuration Release
-        
-        - name: Install zip
-          uses: montudor/action-zip@v1
-        
+               
         - name: Zip
-          run: zip -qq -r maas-dicomtools.zip .
-          working-directory: ./DicomTools/bin/Release/net8.0
+          run: Compress-Archive -Path .\DicomTools\bin\Release\net8.0\* -Destination .\DicomTools\bin\Release\net8.0\maas-dicomtools.zip
 
         - name: Create Release
           uses: softprops/action-gh-release@v2.0.9
