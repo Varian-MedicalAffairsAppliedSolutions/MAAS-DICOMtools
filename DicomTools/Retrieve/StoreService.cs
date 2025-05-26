@@ -163,6 +163,9 @@ namespace DicomTools.Retrieve
 
         private void MoveFile(TreeItem treeItem, string targetPath)
         {
+            if (!File.Exists(treeItem.FileName))
+                return; // Already moved
+
             var targetFileName = Path.Combine(targetPath, Path.GetFileName(treeItem.FileName));
             if (File.Exists(targetFileName))
             {
