@@ -1,3 +1,4 @@
+[README.md](https://github.com/user-attachments/files/22733598/README.md)
 # ESAPI Patient Browser
 
 ## Overview
@@ -18,7 +19,7 @@ The ESAPI Patient Browser is a standalone WPF application that integrates with E
 
 ###  **Data Export & Integration**
 - **JSON Export**: Export selected patients/plans to structured JSON files
-- ** Integration**: Direct integration with DICOM Tools interface
+- **DICOMTools Integration**: Direct integration with DICOMTools web interface
 
 ###  **Advanced Features**
 - **ESAPI Launcher Script**: Deploy directly into Eclipse Scripts menu
@@ -34,7 +35,7 @@ Eclipse TPS → Script Launcher → ESAPIPatientBrowser.exe → Patient Database
 
 ### Workflow
 ```
-ESAPIPatientBrowser → JSON Export → App Import → DICOM Batch Files → DICOMTools.exe
+ESAPIPatientBrowser → JSON Export → DICOMTools Web Interface → DICOM Batch Files → DicomTools.exe
 ```
 
 ## Installation
@@ -42,7 +43,7 @@ ESAPIPatientBrowser → JSON Export → App Import → DICOM Batch Files → DIC
 ### Prerequisites
 - **Varian Eclipse™ TPS**: Version 15.6+
 - **.NET Framework 4.5.2+**: Required for WPF application
-- 
+- **Chromium-based Browser**: Required for DICOMTools web interface (Chrome, Edge, Opera, or Brave)
 
 ## Usage
 
@@ -67,13 +68,13 @@ ESAPIPatientBrowser → JSON Export → App Import → DICOM Batch Files → DIC
 Method 1 - Direct Integration:
 1. Select patients/plans in browser
 2. Click "Send Patient List"
-3. App launches automatically with imported data
+3. DICOMTools web interface launches automatically with imported data
 
 Method 2 - File-Based:
 1. Select patients/plans in browser
 2. Click "Export to JSON"
 3. Save JSON file
-4. In App, click "Import JSON" button
+4. In the DICOMTools web interface, click "Import JSON" button
 5. Select saved JSON file
 ```
 
@@ -120,11 +121,11 @@ Method 2 - File-Based:
 ### App.config Settings
 ```xml
 <appSettings>
-  <!-- Relative path to App executable -->
-  <add key="AppPath" value="..\App\App.exe" />
+  <!-- Relative path to DicomTools executable -->
+  <add key="CombinedAppPath" value="..\MAAS-DICOMtools\DicomTools.exe" />
   
-  <!-- URL for App web interface (if running) -->
-  <add key="AppUrl" value="http://localhost:8080" />
+  <!-- URL for DICOMTools web interface (if running) -->
+  <add key="CombinedAppUrl" value="http://localhost:8080" />
 </appSettings>
 ```
 
@@ -158,7 +159,7 @@ The integration adds the following features to DICOMTools:
 - Verify search criteria and date ranges
 - Ensure user has appropriate Eclipse permissions
 
-**"JSON Import Failed in App"**
+**"JSON Import Failed in DICOMTools"**
 - Verify JSON file format matches expected structure
 - Check browser console for JavaScript errors
 - Ensure JSON file is not corrupted
@@ -174,7 +175,7 @@ The integration adds the following features to DICOMTools:
 ### Key Components
 - **PatientSearchService**: ESAPI database interaction
 - **JsonExportService**: File I/O and JSON serialization
-- **AppService**: Integration with DICOM Tools interface
+- **CombinedAppService**: Integration with DICOMTools web interface
 - **MainViewModel**: MVVM pattern implementation for UI binding
 
 ### Extension Points
@@ -187,15 +188,15 @@ The integration adds the following features to DICOMTools:
 - **Unit Tests**: Test data models and services independently
 - **Integration Tests**: Test ESAPI connectivity in Eclipse environment
 - **UI Tests**: Automated testing of WPF interface
-- **End-to-End Tests**: Full workflow from Eclipse to App
+- **End-to-End Tests**: Full workflow from Eclipse to DICOMTools
 
 ## Compliance & Security
 
 ### Educational Use Only
--**Important**: This software is for educational and research purposes only. It has NOT been validated for clinical use and should not be used in patient care environments.
+- **Important**: This software is for educational and research purposes only. It has NOT been validated for clinical use and should not be used in patient care environments.
 
 ### DICOM Compliance
-- **Anonymization Support**: Integrates with App anonymization features
+- **Anonymization Support**: Integrates with DICOMTools anonymization features
 - **Security Profiles**: ARIA and Basic Security Profile support
 - **Audit Logging**: All patient access logged through Eclipse audit system
 
@@ -206,5 +207,5 @@ The integration adds the following features to DICOMTools:
 
 ---
 
-*This tool is part of the App DICOM Tools suite. For questions about DICOM operations, refer to the App documentation.*
+*This tool is part of the MAAS-DICOMtools suite. For questions about DICOM operations, refer to the MAAS-DICOMtools documentation.*
 
