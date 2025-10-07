@@ -62,7 +62,6 @@ A modern WPF application for browsing Eclipse patient databases and creating bat
 - **Advanced Deep Search** - Search by PTV, dose, structures, machines, and 35+ criteria
 - **Cumulative List Building** - Add patients sequentially to build comprehensive lists
 - **Plan Selection** - Select specific plans per patient with bulk selection tools
-- **Safe ESAPI Integration** - Atomic access protection (AOS-MachineSwitch pattern)
 - **JSON Export/Import** - Save and load patient lists
 - **Direct Web UI Integration** - One-click launch of DICOMTools web interface with patient data
 
@@ -630,11 +629,6 @@ By using this tool, you acknowledge compliance with all terms and conditions.
 
 This is part of the Varian Medical Affairs Applied Solutions (MAAS) suite of tools.
 
-**Related Projects:**
-- [MAAS-PlanScoreCard](https://github.com/Varian-MedicalAffairsAppliedSolutions/MAAS-PlanScoreCard) - Plan scoring and evaluation
-- [MAAS-TXIhelper](https://github.com/Varian-MedicalAffairsAppliedSolutions/MAAS-TXIhelper) - Total X Irradiation tools
-- [MAAS-SFRThelper](https://github.com/Varian-MedicalAffairsAppliedSolutions/MAAS-SFRThelper) - Structure pattern creation
-
 ---
 
 ## Additional Documentation
@@ -649,7 +643,7 @@ This is part of the Varian Medical Affairs Applied Solutions (MAAS) suite of too
 
 ## Version History
 
-**Version 1.2** (Current - Batch-and-Patient-List-Creator Branch)
+**Version 2.0** (Current - Batch-and-Patient-List-Creator Branch)
 - Added ESAPIPatientBrowser with advanced search
 - Added DICOMTools web interface
 - Multi-patient batch processing support
