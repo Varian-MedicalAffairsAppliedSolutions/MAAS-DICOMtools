@@ -4,6 +4,21 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DICOM Tools</title>
+    <script>
+        (function enforceRegistrationGate(){
+            try {
+                var isRegistered = localStorage.getItem('combinedapp_registered');
+                var token = localStorage.getItem('combinedapp_registration_token');
+                if (isRegistered !== 'true' || token !== '436804B1') {
+                    var qs = window.location.search || '';
+                    window.location.replace('gate/index.html' + qs);
+                }
+            } catch (e) {
+                var qs2 = window.location.search || '';
+                window.location.replace('gate/index.html' + qs2);
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="./styles.css" />
     <style>
       .machine-mapping-item {
