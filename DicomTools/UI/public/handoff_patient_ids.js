@@ -1,0 +1,1 @@
+﻿(function(){ try { window.PATIENT_IDS = 'Test1'; window.HANDOFF_DATA = { totalPatients: 1, totalPlans: 1 }; } catch(e){} })();
