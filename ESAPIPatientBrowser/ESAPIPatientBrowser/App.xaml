@@ -1,0 +1,53 @@
+<Application x:Class="ESAPIPatientBrowser.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- MahApps.Metro resource dictionaries -->
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml" />
+                <!-- Dark Base Theme -->
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Themes/Dark.Steel.xaml" />
+                <!-- Custom Teal Accent (overrides with our Teal/Orange colors) -->
+                <ResourceDictionary Source="Resources/TealAccent.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- Dark theme color overrides matching CombinedApp -->
+            <SolidColorBrush x:Key="MahApps.Brushes.ThemeBackground" Color="#404040"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.ThemeForeground" Color="White"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.WindowTitle" Color="#009999"/>
+            
+            <!-- Control backgrounds -->
+            <SolidColorBrush x:Key="MahApps.Brushes.Control.Background" Color="#404040"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.Control.Border" Color="#808080"/>
+            
+            <!-- Text colors -->
+            <SolidColorBrush x:Key="MahApps.Brushes.Text" Color="White"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.Label" Color="#bfbfbf"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.Gray.SemiTransparent" Color="#bfbfbf"/>
+            
+            <!-- Input backgrounds -->
+            <SolidColorBrush x:Key="MahApps.Brushes.TextBox.Background" Color="#000000"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.TextBox.Border" Color="#808080"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.TextBox.Foreground" Color="White"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.TextBox.Background.Focus" Color="#000000"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.TextBox.Border.Focus" Color="#009999"/>
+            
+            <!-- ComboBox backgrounds -->
+            <SolidColorBrush x:Key="MahApps.Brushes.ComboBox.Background" Color="#000000"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.ComboBox.Border" Color="#808080"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.ComboBox.Foreground" Color="White"/>
+            
+            <!-- DatePicker backgrounds -->
+            <SolidColorBrush x:Key="MahApps.Brushes.DatePicker.Background" Color="#000000"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.DatePicker.Border" Color="#808080"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.DatePicker.Foreground" Color="White"/>
+            
+            <!-- Panel backgrounds -->
+            <SolidColorBrush x:Key="MahApps.Brushes.Gray10" Color="#404040"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.Gray9" Color="#404040"/>
+            <SolidColorBrush x:Key="MahApps.Brushes.Gray8" Color="#404040"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

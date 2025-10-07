@@ -1,0 +1,334 @@
+<metro:MetroWindow x:Class="ESAPIPatientBrowser.Views.AdvancedSearchWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:metro="http://metro.mahapps.com/winfx/xaml/controls"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="Advanced Search - Plan Filtering" 
+        Height="750" Width="550"
+        WindowStartupLocation="CenterOwner"
+        GlowBrush="#808080"
+        BorderThickness="1"
+        WindowTitleBrush="#808080"
+        TitleCharacterCasing="Normal">
+    
+    <metro:MetroWindow.Resources>
+        <SolidColorBrush x:Key="TealBrush" Color="#009999"/>
+        <SolidColorBrush x:Key="OrangeBrush" Color="#ec6602"/>
+        <SolidColorBrush x:Key="DarkBackgroundBrush" Color="#404040"/>
+        
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="#EEEEEE"/>
+            <Setter Property="FontSize" Value="11"/>
+        </Style>
+        
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="24"/>
+        </Style>
+    </metro:MetroWindow.Resources>
+    
+    <Grid Margin="12" Background="{StaticResource DarkBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+            <!-- WARNING MESSAGE -->
+            <Border Background="#8B0000" BorderBrush="#FF4444" BorderThickness="2" 
+                    CornerRadius="4" Padding="8" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="⚠ PERFORMANCE WARNING" 
+                               FontWeight="Bold" FontSize="12" 
+                               Foreground="#FFCCCC" 
+                               Margin="0,0,0,4"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#FFCCCC">
+                        <Run Text="This search opens EVERY patient in the date range to scan their plans. "/><Run Text="This operation takes significant time and may overload the system. "/><Run FontWeight="Bold" Text="It is strongly recommended to perform this search during off-hours."/><LineBreak/><LineBreak/><Run Text="A default 5-year date range is applied to help limit the scope."/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+            
+            <TextBlock Text="Search for patients with specific plan characteristics" 
+                       FontSize="13" Margin="0,0,0,4" TextWrapping="Wrap"
+                       Foreground="#EEEEEE"/>
+            <TextBlock Text="Leave filters blank to ignore them. All filters are case-insensitive." 
+                       FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+        </StackPanel>
+        
+        <!-- Filter Controls in ScrollViewer -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,12,0">
+                
+                <!-- SECTION: Patient Search & Date Filters (from Main UI) -->
+                <TextBlock Text="═══ PATIENT FILTERS ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,0,0,6"/>
+                
+                <Label Content="Patient search (ID, First Name, or Last Name):"/>
+                <TextBox x:Name="PatientSearchTextBox" Margin="0,0,0,8"
+                         ToolTip="Filter by patient ID, first name, or last name. Changes sync back to main window."/>
+                
+                <Label Content="Date range:"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="From:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <DatePicker x:Name="FromDatePicker" Grid.Column="1"
+                                ToolTip="Start date for patient search. Changes sync back to main window."/>
+                    <TextBlock Grid.Column="2" Text="To:" VerticalAlignment="Center" Margin="12,0,8,0"/>
+                    <DatePicker x:Name="ToDatePicker" Grid.Column="3"
+                                ToolTip="End date for patient search. Changes sync back to main window."/>
+                </Grid>
+                
+                <CheckBox x:Name="HasPlansCheckBox" IsChecked="True" Foreground="White" Margin="0,0,0,12"
+                          ToolTip="Only show patients with at least one plan. Changes sync back to main window.">
+                    <TextBlock Text="Has plans" Foreground="White"/>
+                </CheckBox>
+                
+                <!-- SECTION: Basic Plan Info -->
+                <TextBlock Text="═══ BASIC PLAN INFO ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,0,0,6"/>
+                
+                <Label Content="Target volume (PTV) contains:"/>
+                <TextBox x:Name="TargetVolumeTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'PTV', 'GTV', 'PTV_70'"/>
+                
+                <Label Content="Plan name contains:"/>
+                <TextBox x:Name="PlanNameTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'Plan1', 'Boost'"/>
+                
+                <Label Content="Prescription site contains:"/>
+                <TextBox x:Name="PrescriptionSiteTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'Prostate', 'Breast', 'Lung'"/>
+                
+                <Label Content="Prescription technique contains:"/>
+                <TextBox x:Name="PrescriptionTechniqueTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'IMRT', 'VMAT', '3D-CRT'"/>
+                
+                <Label Content="Plan intent contains:"/>
+                <TextBox x:Name="PlanIntentTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'CURATIVE', 'PALLIATIVE'"/>
+                
+                <Label Content="Approval status contains:"/>
+                <TextBox x:Name="ApprovalStatusTextBox" Margin="0,0,0,12"
+                         ToolTip="e.g., 'PlanningApproved', 'TreatmentApproved'"/>
+                
+                <!-- SECTION: Dose & Fractionation (HIGH PRIORITY) -->
+                <TextBlock Text="═══ DOSE &amp; FRACTIONATION ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,4,0,6"/>
+                
+                <Label Content="Total dose range (Gy):"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="MinDoseTextBox" Grid.Column="0" 
+                             ToolTip="Enter in Gy (auto-converts from cGy if needed). Leave blank for no minimum."/>
+                    <TextBlock Grid.Column="1" Text=" to " VerticalAlignment="Center" Margin="8,0"/>
+                    <TextBox x:Name="MaxDoseTextBox" Grid.Column="2"
+                             ToolTip="Enter in Gy (auto-converts from cGy if needed). Leave blank for no maximum."/>
+                </Grid>
+                
+                <Label Content="Dose per fraction range (Gy):"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="MinDosePerFractionTextBox" Grid.Column="0" 
+                             ToolTip="Enter in Gy (e.g., '1.8' for conventional). Auto-converts from cGy if needed."/>
+                    <TextBlock Grid.Column="1" Text=" to " VerticalAlignment="Center" Margin="8,0"/>
+                    <TextBox x:Name="MaxDosePerFractionTextBox" Grid.Column="2"
+                             ToolTip="Enter in Gy (e.g., '3' for hypofractionated). Auto-converts from cGy if needed."/>
+                </Grid>
+                
+                <Label Content="Number of fractions range:"/>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="MinFractionsTextBox" Grid.Column="0" 
+                             ToolTip="e.g., '1' for SRS/SBRT"/>
+                    <TextBlock Grid.Column="1" Text=" to " VerticalAlignment="Center" Margin="8,0"/>
+                    <TextBox x:Name="MaxFractionsTextBox" Grid.Column="2"
+                             ToolTip="e.g., '35' for conventional"/>
+                </Grid>
+                
+                <!-- SECTION: Beam Configuration (HIGH PRIORITY) -->
+                <TextBlock Text="═══ BEAM CONFIGURATION ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,4,0,6"/>
+                
+                <Label Content="Plan type contains:"/>
+                <TextBox x:Name="MlcTypeTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'Static', 'DynamicMLC', 'VMAT'"/>
+                
+                <Label Content="Beam technique contains:"/>
+                <TextBox x:Name="BeamTechniqueTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'Static', 'SRS', 'ARC'"/>
+                
+                <Label Content="Number of control points range:"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="MinControlPointsTextBox" Grid.Column="0" 
+                             ToolTip="e.g., '178' for VMAT"/>
+                    <TextBlock Grid.Column="1" Text=" to " VerticalAlignment="Center" Margin="8,0"/>
+                    <TextBox x:Name="MaxControlPointsTextBox" Grid.Column="2"
+                             ToolTip="High values indicate IMRT/VMAT"/>
+                </Grid>
+                
+                <Label Content="Machine ID contains:"/>
+                <TextBox x:Name="MachineIdTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'TrueBeam1', 'Clinac'"/>
+                
+                <Label Content="Energy contains:"/>
+                <TextBox x:Name="EnergyTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., '6X', '10X', '15X'"/>
+                
+                <Label Content="MLC ID contains:"/>
+                <TextBox x:Name="MlcIdTextBox" Margin="0,0,0,12"
+                         ToolTip="e.g., 'Millennium120', 'HD120'"/>
+                
+                <!-- SECTION: Structures (HIGH PRIORITY) -->
+                <TextBlock Text="═══ STRUCTURES ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,4,0,6"/>
+                
+                <Label Content="Structure name contains:"/>
+                <TextBox x:Name="StructureNameTextBox" Margin="0,0,0,12"
+                         ToolTip="Searches all structures in the plan (e.g., 'Rectum', 'Bladder')"/>
+                
+                <!-- SECTION: Patient & Course Info -->
+                <TextBlock Text="═══ PATIENT &amp; COURSE INFO ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,4,0,6"/>
+                
+                <Label Content="Patient sex contains:"/>
+                <TextBox x:Name="PatientSexTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'Male', 'Female'"/>
+                
+                <Label Content="Hospital contains:"/>
+                <TextBox x:Name="HospitalTextBox" Margin="0,0,0,8"
+                         ToolTip="Hospital/location identifier"/>
+                
+                <Label Content="Course intent contains:"/>
+                <TextBox x:Name="CourseIntentTextBox" Margin="0,0,0,12"
+                         ToolTip="e.g., 'Curative', 'Palliative'"/>
+                
+                <!-- SECTION: Users & Approval -->
+                <TextBlock Text="═══ USERS &amp; APPROVAL ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,4,0,6"/>
+                
+                <Label Content="Creation user contains:"/>
+                <TextBox x:Name="CreationUserTextBox" Margin="0,0,0,8"
+                         ToolTip="Who created the plan"/>
+                
+                <Label Content="Plan approver contains:"/>
+                <TextBox x:Name="PlanApproverTextBox" Margin="0,0,0,8"
+                         ToolTip="Who approved the plan for planning"/>
+                
+                <Label Content="Treatment approver contains:"/>
+                <TextBox x:Name="TreatmentApproverTextBox" Margin="0,0,0,8"
+                         ToolTip="Who approved the plan for treatment"/>
+                
+                <Label Content="Approval date range:"/>
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <DatePicker x:Name="MinApprovalDatePicker" Grid.Column="0" Height="26"
+                                ToolTip="From date"/>
+                    <TextBlock Grid.Column="1" Text=" to " VerticalAlignment="Center" Margin="8,0"/>
+                    <DatePicker x:Name="MaxApprovalDatePicker" Grid.Column="2" Height="26"
+                                ToolTip="To date"/>
+                </Grid>
+                
+                <!-- SECTION: Advanced Options -->
+                <TextBlock Text="═══ ADVANCED OPTIONS ═══" FontWeight="Bold" Foreground="{StaticResource OrangeBrush}" Margin="0,4,0,6"/>
+                
+                <Label Content="Image orientation contains:"/>
+                <TextBox x:Name="ImageOrientationTextBox" Margin="0,0,0,8"
+                         ToolTip="e.g., 'HeadFirstSupine', 'FeetFirstSupine'"/>
+                
+                <Label Content="Dose valid:"/>
+                <ComboBox x:Name="IsDoseValidComboBox" Margin="0,0,0,8" Height="26">
+                    <ComboBoxItem Content="(Any)" IsSelected="True"/>
+                    <ComboBoxItem Content="Yes">
+                        <ComboBoxItem.Tag>
+                            <sys:Boolean>True</sys:Boolean>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                    <ComboBoxItem Content="No">
+                        <ComboBoxItem.Tag>
+                            <sys:Boolean>False</sys:Boolean>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                </ComboBox>
+                
+                <Label Content="Auto crop (target overlap control):"/>
+                <ComboBox x:Name="AutoCropComboBox" Margin="0,0,0,8" Height="26">
+                    <ComboBoxItem Content="(Any)" IsSelected="True"/>
+                    <ComboBoxItem Content="On">
+                        <ComboBoxItem.Tag>
+                            <sys:Boolean>True</sys:Boolean>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                    <ComboBoxItem Content="Off">
+                        <ComboBoxItem.Tag>
+                            <sys:Boolean>False</sys:Boolean>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                </ComboBox>
+                
+                <Label Content="Has DVH estimates:"/>
+                <ComboBox x:Name="HasDVHEstimatesComboBox" Margin="0,0,0,8" Height="26">
+                    <ComboBoxItem Content="(Any)" IsSelected="True"/>
+                    <ComboBoxItem Content="Yes">
+                        <ComboBoxItem.Tag>
+                            <sys:Boolean>True</sys:Boolean>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                    <ComboBoxItem Content="No">
+                        <ComboBoxItem.Tag>
+                            <sys:Boolean>False</sys:Boolean>
+                        </ComboBoxItem.Tag>
+                    </ComboBoxItem>
+                </ComboBox>
+                
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- Buttons -->
+        <Grid Grid.Row="2" Margin="0,12,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button x:Name="ClearFiltersButton" Content="Clear Filters" Width="120"
+                        Click="ClearFiltersButton_Click"
+                        Background="{StaticResource OrangeBrush}"
+                        Foreground="White"
+                        FontWeight="Bold"
+                        ToolTip="Clear all filters and reset saved settings"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="SearchButton" Content="Search" Width="100" Margin="0,0,8,0"
+                        Click="SearchButton_Click" IsDefault="True"
+                        Background="{StaticResource TealBrush}" 
+                        Foreground="White"
+                        FontWeight="Bold"/>
+                <Button x:Name="CancelButton" Content="Cancel" Width="100"
+                        Click="CancelButton_Click" IsCancel="True"
+                        Background="#606060"
+                        Foreground="White"
+                        FontWeight="Bold"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</metro:MetroWindow>
