@@ -118,113 +118,142 @@ namespace ESAPIPatientBrowser.Services
                 // Try to find index.html in common relative locations
                 var candidates = new System.Collections.Generic.List<string>();
 
-                // 1) Relative to detected CombinedApp executable folder
+                // 1) Relative to detected DicomTools executable folder
                 var appPath = GetCombinedAppPath();
                 var appBase = Path.GetDirectoryName(appPath);
                 if (!string.IsNullOrEmpty(appBase))
                 {
-                    candidates.Add(Path.Combine(appBase, "ui", "public", "index.html"));
-                    candidates.Add(Path.Combine(appBase, "..", "ui", "public", "index.html"));
+                    candidates.Add(Path.Combine(appBase, "UI", "public", "index.html"));
+                    candidates.Add(Path.Combine(appBase, "DicomTools", "UI", "public", "index.html"));
                 }
 
                 // 2) Relative to the ESAPIPatientBrowser exe (bin folder)
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                // Walk up several ancestors and try CombinedApp\ui\public\index.html
+                // Walk up several ancestors and try various paths
                 for (int i = 0; i <= 7; i++)
                 {
                     var ancestor = baseDir;
                     for (int j = 0; j < i; j++) ancestor = Path.GetFullPath(Path.Combine(ancestor, ".."));
+                    
+                    // New structure: MAAS-DICOMtools\DicomTools\UI\public\index.html
+                    candidates.Add(Path.Combine(ancestor, "MAAS-DICOMtools", "DicomTools", "UI", "public", "index.html"));
+                    candidates.Add(Path.Combine(ancestor, "DicomTools", "UI", "public", "index.html"));
+                    
+                    // Legacy structure support
                     candidates.Add(Path.Combine(ancestor, "CombinedApp", "ui", "public", "index.html"));
-                    candidates.Add(Path.Combine(ancestor, "CombinedApp", "CombinedApp", "ui", "public", "index.html"));
                     candidates.Add(Path.Combine(ancestor, "ui", "public", "index.html"));
                 }
+
+                string foundIndexPath = null;
 
                 foreach (var file in candidates)
                 {
                     if (!string.IsNullOrWhiteSpace(file) && File.Exists(file))
                     {
-                        // If a handoff collection was provided, write it next to index.html so the page can load it
-                        if (handoffCollection != null)
-                        {
-                            try
-                            {
-                                var indexDir = Path.GetDirectoryName(file);
-                                if (!string.IsNullOrEmpty(indexDir))
-                                {
-                                    var jsonPath = Path.Combine(indexDir, "handoff_patients.json");
-                                    var idsPath = Path.Combine(indexDir, "handoff_patient_ids.txt");
-                                    var idsJsPath = Path.Combine(indexDir, "handoff_patient_ids.js");
-                                    var handoffJsPath = Path.Combine(indexDir, "handoff_patients.js");
-                                    // Overwrite each time
-                                    _jsonExportService.ExportToPath(handoffCollection, jsonPath);
-                                    File.WriteAllText(idsPath, handoffCollection.PatientIdString ?? string.Empty, Encoding.UTF8);
-                                    // Also provide a JS bootstrap for file:// contexts
-                                    var totalPatients = handoffCollection.TotalPatients;
-                                    var totalPlans = handoffCollection.TotalPlans;
-                                    var jsContent = "(function(){ try { window.PATIENT_IDS = '" + (handoffCollection.PatientIdString ?? string.Empty).Replace("\\", "\\\\").Replace("'", "\\'") + "'; " +
-                                                    "window.HANDOFF_DATA = { totalPatients: " + totalPatients + ", totalPlans: " + totalPlans + " }; } catch(e){} })();";
-                                    File.WriteAllText(idsJsPath, jsContent, Encoding.UTF8);
-                                    // Optionally write full handoff JSON JS; ignore failures
-                                    try { var compactJson = handoffCollection.ToJson(formatted: false); var handoffJs = "(function(){ try { window.HANDOFF_FULL = " + compactJson + "; } catch(e){} })();"; File.WriteAllText(handoffJsPath, handoffJs, Encoding.UTF8); } catch {}
-                                }
-                            }
-                            catch (Exception wex)
-                            {
-                                Debug.WriteLine("Failed writing handoff files: " + wex.Message);
-                                // Non-fatal; proceed to open UI
-                            }
-                        }
-
-                        var indexFullPath = Path.GetFullPath(file);
-                        string fileUrl = new Uri(indexFullPath).AbsoluteUri;
-
-                        // Append patientIds query parameter if provided
-                        if (handoffCollection != null)
-                        {
-                            var ids = handoffCollection.PatientIdString ?? string.Empty;
-                            if (!string.IsNullOrWhiteSpace(ids))
-                            {
-                                fileUrl += (fileUrl.Contains("?") ? "&" : "?") +
-                                           "patientIds=" + Uri.EscapeDataString(ids);
-                            }
-                        }
-
-                        var psi = new ProcessStartInfo
-                        {
-                            FileName = fileUrl,
-                            UseShellExecute = true
-                        };
-                        Process.Start(psi);
-                        return true;
+                        foundIndexPath = file;
+                        break;
                     }
                 }
 
-                // 3) Prompt user to locate index.html manually
-                var dlg = new OpenFileDialog
+                // 3) If not found automatically, prompt user to locate index.html manually
+                if (foundIndexPath == null)
                 {
-                    Title = "Locate CombinedApp index.html",
-                    Filter = "HTML files (*.html;*.htm)|*.html;*.htm|All files (*.*)|*.*"
-                };
-                if (dlg.ShowDialog() == true)
-                {
-                    var psi2 = new ProcessStartInfo
+                    var dlg = new OpenFileDialog
                     {
-                        FileName = dlg.FileName,
-                        UseShellExecute = true
+                        Title = "Locate DICOMTools index.html",
+                        Filter = "HTML files (*.html;*.htm)|*.html;*.htm|All files (*.*)|*.*",
+                        FileName = "index.html"
                     };
-                    Process.Start(psi2);
-                    return true;
+                    if (dlg.ShowDialog() == true)
+                    {
+                        foundIndexPath = dlg.FileName;
+                    }
+                    else
+                    {
+                        ThemedMessageBox.Show("Could not locate DICOMTools index.html. Please verify its location under MAAS-DICOMtools\\DicomTools\\UI\\public.",
+                                        "Open UI Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return false;
+                    }
                 }
 
-                ThemedMessageBox.Show("Could not locate CombinedApp index.html. Please verify its location under CombinedApp\\ui\\public.",
-                                "Open UI Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return false;
+                // Write handoff files if collection was provided
+                if (handoffCollection != null && foundIndexPath != null)
+                {
+                    WriteHandoffFiles(foundIndexPath, handoffCollection);
+                }
+
+                // Open the index.html file in default browser
+                var indexFullPath = Path.GetFullPath(foundIndexPath);
+                string fileUrl = new Uri(indexFullPath).AbsoluteUri;
+
+                // Append patientIds query parameter if provided
+                if (handoffCollection != null)
+                {
+                    var ids = handoffCollection.PatientIdString ?? string.Empty;
+                    if (!string.IsNullOrWhiteSpace(ids))
+                    {
+                        fileUrl += (fileUrl.Contains("?") ? "&" : "?") +
+                                   "patientIds=" + Uri.EscapeDataString(ids);
+                    }
+                }
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = fileUrl,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+                return true;
             }
             catch (Exception ex)
             {
-                ThemedMessageBox.Show($"Error opening CombinedApp UI:\n{ex.Message}",
+                ThemedMessageBox.Show($"Error opening DICOMTools UI:\n{ex.Message}",
                                 "Open UI Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return false;
+            }
+        }
+
+        private void WriteHandoffFiles(string indexHtmlPath, PatientPlanCollection handoffCollection)
+        {
+            try
+            {
+                var indexDir = Path.GetDirectoryName(indexHtmlPath);
+                if (string.IsNullOrEmpty(indexDir)) return;
+
+                var jsonPath = Path.Combine(indexDir, "handoff_patients.json");
+                var idsPath = Path.Combine(indexDir, "handoff_patient_ids.txt");
+                var idsJsPath = Path.Combine(indexDir, "handoff_patient_ids.js");
+                var handoffJsPath = Path.Combine(indexDir, "handoff_patients.js");
+
+                // Write handoff files
+                _jsonExportService.ExportToPath(handoffCollection, jsonPath);
+                File.WriteAllText(idsPath, handoffCollection.PatientIdString ?? string.Empty, Encoding.UTF8);
+
+                // Write JavaScript bootstrap for file:// protocol support
+                var totalPatients = handoffCollection.TotalPatients;
+                var totalPlans = handoffCollection.TotalPlans;
+                var jsContent = "(function(){ try { window.PATIENT_IDS = '" + 
+                                (handoffCollection.PatientIdString ?? string.Empty).Replace("\\", "\\\\").Replace("'", "\\'") + 
+                                "'; window.HANDOFF_DATA = { totalPatients: " + totalPatients + 
+                                ", totalPlans: " + totalPlans + " }; } catch(e){} })();";
+                File.WriteAllText(idsJsPath, jsContent, Encoding.UTF8);
+
+                // Write full handoff JSON as JavaScript
+                try
+                {
+                    var compactJson = handoffCollection.ToJson(formatted: false);
+                    var handoffJs = "(function(){ try { window.HANDOFF_FULL = " + compactJson + "; } catch(e){} })();";
+                    File.WriteAllText(handoffJsPath, handoffJs, Encoding.UTF8);
+                }
+                catch
+                {
+                    // Non-fatal if full handoff fails
+                }
+            }
+            catch (Exception wex)
+            {
+                Debug.WriteLine("Failed writing handoff files: " + wex.Message);
+                // Non-fatal; UI will still open
             }
         }
 
