@@ -652,9 +652,8 @@ This is part of the Varian Medical Affairs Applied Solutions (MAAS) suite of too
 - Dynamic machine mapping
 - Settings management interface
 
-**Version 1.0** (Original DicomTools)
-- Basic retrieve, store, search, show commands
-- Single patient operations
+**Version 1.2** (Original DicomTools)
+- retrieve, store, search, show commands
 - Anonymization support
 
 ---
