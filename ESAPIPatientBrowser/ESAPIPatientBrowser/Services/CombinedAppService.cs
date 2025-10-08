@@ -134,11 +134,11 @@ namespace ESAPIPatientBrowser.Services
                 {
                     var ancestor = baseDir;
                     for (int j = 0; j < i; j++) ancestor = Path.GetFullPath(Path.Combine(ancestor, ".."));
-                    
+
                     // New structure: MAAS-DICOMtools\DicomTools\UI\public\index.html
                     candidates.Add(Path.Combine(ancestor, "MAAS-DICOMtools", "DicomTools", "UI", "public", "index.html"));
                     candidates.Add(Path.Combine(ancestor, "DicomTools", "UI", "public", "index.html"));
-                    
+
                     // Legacy structure support
                     candidates.Add(Path.Combine(ancestor, "CombinedApp", "ui", "public", "index.html"));
                     candidates.Add(Path.Combine(ancestor, "ui", "public", "index.html"));
@@ -232,9 +232,9 @@ namespace ESAPIPatientBrowser.Services
                 // Write JavaScript bootstrap for file:// protocol support
                 var totalPatients = handoffCollection.TotalPatients;
                 var totalPlans = handoffCollection.TotalPlans;
-                var jsContent = "(function(){ try { window.PATIENT_IDS = '" + 
-                                (handoffCollection.PatientIdString ?? string.Empty).Replace("\\", "\\\\").Replace("'", "\\'") + 
-                                "'; window.HANDOFF_DATA = { totalPatients: " + totalPatients + 
+                var jsContent = "(function(){ try { window.PATIENT_IDS = '" +
+                                (handoffCollection.PatientIdString ?? string.Empty).Replace("\\", "\\\\").Replace("'", "\\'") +
+                                "'; window.HANDOFF_DATA = { totalPatients: " + totalPatients +
                                 ", totalPlans: " + totalPlans + " }; } catch(e){} })();";
                 File.WriteAllText(idsJsPath, jsContent, Encoding.UTF8);
 
@@ -281,12 +281,12 @@ namespace ESAPIPatientBrowser.Services
                 using (var client = new HttpClient())
                 {
                     client.Timeout = TimeSpan.FromSeconds(10);
-                    
+
                     var json = collection.ToJson();
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    
+
                     var response = await client.PostAsync($"{_combinedAppUrl}/api/import-patients", content);
-                    
+
                     if (response.IsSuccessStatusCode)
                     {
                         ThemedMessageBox.Show("Patient list successfully sent to CombinedApp!",
@@ -359,3 +359,4 @@ namespace ESAPIPatientBrowser.Services
         }
     }
 }
+

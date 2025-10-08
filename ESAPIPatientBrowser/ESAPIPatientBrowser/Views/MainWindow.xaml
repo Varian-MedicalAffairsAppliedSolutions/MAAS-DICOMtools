@@ -367,7 +367,8 @@
 					</Grid.ColumnDefinitions>
 					<StackPanel Orientation="Horizontal">
 						<Button Content="Select All" Command="{Binding SelectAllPatientsCommand}" 
-								Style="{StaticResource HeaderActionButtonStyle}"/>
+								Style="{StaticResource HeaderActionButtonStyle}"
+								ToolTip="Select all patients in the list"/>
 						<Button Content="Clear Selection" Command="{Binding ClearSelectionCommand}" 
 								Style="{StaticResource HeaderActionButtonStyle}"
 								ToolTip="Clear checkboxes but keep patients in list"/>
@@ -380,11 +381,14 @@
 					<!-- Plan selection shortcuts for selected patient -->
 					<StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
 						<Button Content="Select All Plans" Command="{Binding SelectAllPlansForListCommand}"
-								Style="{StaticResource HeaderActionButtonStyle}"/>
+								Style="{StaticResource HeaderActionButtonStyle}"
+								ToolTip="Select all plans for all patients in the list"/>
 						<Button Content="Select Approved Plans" Command="{Binding SelectApprovedPlansForListCommand}"
-								Style="{StaticResource HeaderActionButtonStyle}"/>
+								Style="{StaticResource HeaderActionButtonStyle}"
+								ToolTip="Select plans with PlanningApproved or TreatmentApproved status for all patients in the list"/>
 						<Button Content="Select Most Recent Plan" Command="{Binding SelectMostRecentPlanForListCommand}"
-								Style="{StaticResource HeaderActionButtonStyle}"/>
+								Style="{StaticResource HeaderActionButtonStyle}"
+								ToolTip="Select the most recent plan for each patient in the list"/>
 					</StackPanel>
 				</Grid>
                 
@@ -437,11 +441,14 @@
                 <!-- CombinedApp Actions -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Content="Export to JSON" Command="{Binding ExportToJsonCommand}" 
-                            Style="{StaticResource ActionButtonStyle}"/>
+                            Style="{StaticResource ActionButtonStyle}"
+                            ToolTip="Export selected patients and plans to JSON file for DICOMTools"/>
                     <Button Content="Import from JSON" Command="{Binding ImportFromJsonCommand}" 
-                            Style="{StaticResource ActionButtonStyle}"/>
+                            Style="{StaticResource ActionButtonStyle}"
+                            ToolTip="Import patients and plans from a previously saved JSON file"/>
                     <Button Content="Open DICOMTools Web UI" Command="{Binding OpenCombinedAppIndexCommand}"
-                            Style="{StaticResource HighlightButtonStyle}"/>
+                            Style="{StaticResource HighlightButtonStyle}"
+                            ToolTip="Launch DICOMTools web interface to export/import DICOM files"/>
                 </StackPanel>
             </Grid>
         </GroupBox>

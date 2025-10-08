@@ -602,7 +602,7 @@ namespace ESAPIPatientBrowser.ViewModels
             await PerformBroadSearchAsync();
         }
 
-        private async Task<List<PatientInfo>> PerformAdvancedSearchOnUIThreadAsync(DateTime fromDate, DateTime toDate, AdvancedSearchCriteria criteria, string searchText = "", bool filterByHasPlans = false, CancellationToken cancellationToken = default)
+        private async Task<List<PatientInfo>> PerformAdvancedSearchOnUIThreadAsync(DateTime fromDate, DateTime toDate, AdvancedSearchCriteria criteria, string searchText = "", bool filterByHasPlans = false, CancellationToken cancellationToken = default, int? patientLimit = null)
         {
             var results = new List<PatientInfo>();
             
@@ -613,6 +613,7 @@ namespace ESAPIPatientBrowser.ViewModels
             System.Diagnostics.Debug.WriteLine($"Date range: {fromDate:MM/dd/yyyy} to {toDate:MM/dd/yyyy}");
             System.Diagnostics.Debug.WriteLine($"Search text: '{searchText}'");
             System.Diagnostics.Debug.WriteLine($"Filter by has plans: {filterByHasPlans}");
+            System.Diagnostics.Debug.WriteLine($"Patient limit: {(patientLimit.HasValue ? patientLimit.Value.ToString() : "None")}");
             System.Diagnostics.Debug.WriteLine($"Criteria is empty: {criteria?.IsEmpty() ?? true}");
             
             // Get patients in date range
@@ -633,10 +634,36 @@ namespace ESAPIPatientBrowser.ViewModels
                 System.Diagnostics.Debug.WriteLine($"After patient search filter: {patientSummaries.Count} patients");
             }
 
+            // PRE-FILTER by patient attributes to avoid opening patients unnecessarily
+            int preFilterInitialCount = patientSummaries.Count;
+            int preFilterCount = patientSummaries.Count;
+            
+            // Pre-filter by patient sex if specified
+            if (!string.IsNullOrWhiteSpace(criteria.PatientSexContains))
+            {
+                var sexUpper = criteria.PatientSexContains.ToUpper();
+                patientSummaries = patientSummaries
+                    .Where(ps => !string.IsNullOrWhiteSpace(ps.Sex) && ps.Sex.ToUpper().Contains(sexUpper))
+                    .ToList();
+                System.Diagnostics.Debug.WriteLine($"Pre-filter by sex '{criteria.PatientSexContains}': {preFilterCount} → {patientSummaries.Count} patients");
+                preFilterCount = patientSummaries.Count;
+            }
+
+            // Log pre-filtering results
+            if (preFilterCount != preFilterInitialCount)
+            {
+                StatusMessage = $"Pre-filtered to {patientSummaries.Count} patients based on search criteria (reduced from {preFilterInitialCount})";
+                await Task.Delay(500, cancellationToken); // Brief pause to show message
+            }
+
             int total = patientSummaries.Count;
             int current = 0;
+            int patientsOpened = 0;
+            int patientsWithErrors = 0;
+            int patientsSkipped = 0;
             
             System.Diagnostics.Debug.WriteLine($"Found {total} patient summaries to scan");
+            System.Diagnostics.Debug.WriteLine($"Criteria: {(criteria.IsEmpty() ? "Empty (match all)" : "Has filters")}");
 
             foreach (var summary in patientSummaries)
             {
@@ -649,16 +676,35 @@ namespace ESAPIPatientBrowser.ViewModels
                 SearchProgress = (double)current / total * 100.0;
                 StatusMessage = $"Scanning patient {current}/{total}: {summary.Id}";
 
-                // Yield control to UI every 5 patients to keep UI responsive
-                if (current % 5 == 0)
-                {
-                    await Task.Delay(1, cancellationToken); // Allows UI to update
-                }
+                // Yield control to UI before each patient to keep UI responsive
+                await Task.Delay(1, cancellationToken); // Allows UI to update and handle cancel requests
 
+                VMS.TPS.Common.Model.API.Patient patient = null;
+                
                 try
                 {
-                    var patient = _esapiApp.OpenPatient(summary);
-                    if (patient == null) continue;
+                    // Smart error handling: Try to open patient with timeout awareness
+                    try
+                    {
+                        patient = _esapiApp.OpenPatient(summary);
+                    }
+                    catch (Exception openEx)
+                    {
+                        // Log specific open errors and skip patient
+                        System.Diagnostics.Debug.WriteLine($"Failed to open patient {summary.Id}: {openEx.Message}");
+                        StatusMessage = $"Skipping patient {summary.Id} (cannot open): {openEx.Message}";
+                        patientsSkipped++;
+                        continue;
+                    }
+                    
+                    if (patient == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Patient {summary.Id} returned null");
+                        patientsSkipped++;
+                        continue;
+                    }
+                    
+                    patientsOpened++;
 
                     var patientInfo = new PatientInfo
                     {
@@ -673,19 +719,41 @@ namespace ESAPIPatientBrowser.ViewModels
                     var matchingPlans = new List<PlanInfo>();
                     int totalPlansScanned = 0;
 
-                    // Scan all courses and plans
+                    // Scan all courses and plans with per-plan error handling
                     foreach (var course in patient.Courses)
                     {
-                        foreach (var planSetup in course.PlanSetups)
+                        try
                         {
-                            totalPlansScanned++;
-                            var planInfo = _deepSearchService.ExtractDetailedPlanInfo(planSetup);
-                            
-                            // Check if plan matches criteria
-                            if (_deepSearchService.PlanMatchesCriteria(planInfo, criteria))
+                            // Skip empty or inaccessible courses
+                            if (course == null || course.PlanSetups == null || !course.PlanSetups.Any())
+                                continue;
+                                
+                            foreach (var planSetup in course.PlanSetups)
                             {
-                                matchingPlans.Add(planInfo);
+                                try
+                                {
+                                    totalPlansScanned++;
+                                    var planInfo = _deepSearchService.ExtractDetailedPlanInfo(planSetup);
+                                    
+                                    // Check if plan matches criteria
+                                    if (_deepSearchService.PlanMatchesCriteria(planInfo, criteria))
+                                    {
+                                        matchingPlans.Add(planInfo);
+                                    }
+                                }
+                                catch (Exception planEx)
+                                {
+                                    // Log and skip problematic plans without failing entire patient
+                                    System.Diagnostics.Debug.WriteLine($"Error processing plan {planSetup?.Id} for patient {patient.Id}: {planEx.Message}");
+                                    // Continue to next plan
+                                }
                             }
+                        }
+                        catch (Exception courseEx)
+                        {
+                            // Log and skip problematic courses
+                            System.Diagnostics.Debug.WriteLine($"Error processing course {course?.Id} for patient {patient.Id}: {courseEx.Message}");
+                            // Continue to next course
                         }
                     }
 
@@ -698,12 +766,22 @@ namespace ESAPIPatientBrowser.ViewModels
                         patientInfo.Plans = matchingPlans;
                         results.Add(patientInfo);
                         System.Diagnostics.Debug.WriteLine($"Added patient {patient.Id} with {matchingPlans.Count} plans to results");
+                        
+                        // Check if we've reached the patient limit
+                        if (patientLimit.HasValue && results.Count >= patientLimit.Value)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Patient limit of {patientLimit.Value} reached. Stopping search.");
+                            StatusMessage = $"Patient limit reached ({patientLimit.Value} patients found). Stopping search...";
+                            _esapiApp.ClosePatient();
+                            break; // Exit the foreach loop
+                        }
                     }
 
                     _esapiApp.ClosePatient();
                 }
                 catch (Exception ex)
                 {
+                    patientsWithErrors++;
                     StatusMessage = $"Error scanning patient {summary.Id}: {ex.Message}";
                     System.Diagnostics.Debug.WriteLine($"Exception scanning patient {summary.Id}: {ex.Message}\n{ex.StackTrace}");
                     try { _esapiApp.ClosePatient(); } catch { }
@@ -723,9 +801,27 @@ namespace ESAPIPatientBrowser.ViewModels
             
             int totalPlansInResults = results.Sum(p => p.Plans?.Count ?? 0);
             System.Diagnostics.Debug.WriteLine($"=== Advanced Search Complete ===");
+            System.Diagnostics.Debug.WriteLine($"Scanned {patientsOpened} patients, {patientsSkipped} skipped, {patientsWithErrors} errors");
             System.Diagnostics.Debug.WriteLine($"Returning {results.Count} patients with {totalPlansInResults} total plans");
             
-            StatusMessage = $"Advanced search complete. Found {results.Count} patients with matching plans.";
+            // Build detailed status message
+            string scanDetails = $"Scanned {patientsOpened}/{total} patients";
+            if (patientsSkipped > 0 || patientsWithErrors > 0)
+            {
+                var issues = new List<string>();
+                if (patientsSkipped > 0) issues.Add($"{patientsSkipped} skipped");
+                if (patientsWithErrors > 0) issues.Add($"{patientsWithErrors} errors");
+                scanDetails += $" ({string.Join(", ", issues)})";
+            }
+            
+            if (patientLimit.HasValue && results.Count >= patientLimit.Value)
+            {
+                StatusMessage = $"Advanced search complete. Found {results.Count} patients (limit reached) with {totalPlansInResults} matching plans. {scanDetails}.";
+            }
+            else
+            {
+                StatusMessage = $"Advanced search complete. Found {results.Count} patients with {totalPlansInResults} matching plans. {scanDetails}.";
+            }
             return results;
         }
 
@@ -751,6 +847,7 @@ namespace ESAPIPatientBrowser.ViewModels
             ShowOnlyPatientsWithPlans = deepSearchWindow.ShowOnlyPatientsWithPlans;
 
             var criteria = deepSearchWindow.SearchCriteria;
+            var patientLimit = deepSearchWindow.PatientLimit;
 
             // Use date range if specified, otherwise search all patients
             var fromDate = FromDate ?? DateTime.MinValue;
@@ -765,6 +862,11 @@ namespace ESAPIPatientBrowser.ViewModels
                 StatusMessage = FromDate.HasValue && ToDate.HasValue 
                     ? "Performing advanced search..." 
                     : "Performing advanced search (all dates)...";
+                
+                if (patientLimit.HasValue)
+                {
+                    StatusMessage += $" (limited to {patientLimit.Value} patients)";
+                }
 
                 // IMPORTANT: ESAPI must run on UI thread - cannot use Task.Run()
                 // Perform deep search on UI thread with periodic yield for responsiveness
@@ -774,7 +876,8 @@ namespace ESAPIPatientBrowser.ViewModels
                     criteria, 
                     SearchText ?? "", 
                     ShowOnlyPatientsWithPlans,
-                    _searchCancellationTokenSource.Token);
+                    _searchCancellationTokenSource.Token,
+                    patientLimit);
 
                 // Clear existing patients and add results
                 Patients.Clear();
@@ -1197,8 +1300,8 @@ namespace ESAPIPatientBrowser.ViewModels
             if (string.IsNullOrWhiteSpace(status)) return false;
             // Normalize: remove spaces, make case-insensitive comparisons
             var normalized = new string(status.Where(char.IsLetter).ToArray()).ToLowerInvariant();
-            // Accept only exact PlanningApproved (common ESAPI displays like "PlanningApproved" or "Planning Approved")
-            return normalized == "planningapproved";
+            // Accept both PlanningApproved and TreatmentApproved
+            return normalized == "planningapproved" || normalized == "treatmentapproved";
         }
 
         private void UpdateCurrentCollection()

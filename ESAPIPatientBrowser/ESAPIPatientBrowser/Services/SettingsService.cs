@@ -6,10 +6,33 @@ using ESAPIPatientBrowser.Models;
 namespace ESAPIPatientBrowser.Services
 {
     /// <summary>
+    /// Holds session-specific settings for Advanced Search
+    /// </summary>
+    public class AdvancedSearchSessionSettings
+    {
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public bool ShowOnlyPatientsWithPlans { get; set; }
+        public bool DelaySearchEnabled { get; set; }
+        public int DelayMinutes { get; set; }
+        public bool LimitPatientsEnabled { get; set; }
+        public int PatientLimit { get; set; }
+    }
+    
+    /// <summary>
     /// Service for persisting user settings across application sessions
     /// </summary>
     public static class SettingsService
     {
+        // In-memory session settings (not persisted to disk)
+        private static AdvancedSearchSessionSettings _sessionSettings = new AdvancedSearchSessionSettings
+        {
+            ShowOnlyPatientsWithPlans = true,
+            DelaySearchEnabled = false,
+            DelayMinutes = 30,
+            LimitPatientsEnabled = false,
+            PatientLimit = 10
+        };
         private static readonly string SettingsFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "ESAPIPatientBrowser"
@@ -84,6 +107,29 @@ namespace ESAPIPatientBrowser.Services
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to clear Advanced Search settings: {ex.Message}");
             }
+        }
+        
+        /// <summary>
+        /// Saves session settings (in-memory only, not persisted to disk)
+        /// </summary>
+        public static void SaveSessionSettings(AdvancedSearchSessionSettings settings)
+        {
+            _sessionSettings = settings ?? new AdvancedSearchSessionSettings
+            {
+                ShowOnlyPatientsWithPlans = true,
+                DelaySearchEnabled = false,
+                DelayMinutes = 30,
+                LimitPatientsEnabled = false,
+                PatientLimit = 10
+            };
+        }
+        
+        /// <summary>
+        /// Loads session settings (from in-memory cache)
+        /// </summary>
+        public static AdvancedSearchSessionSettings LoadSessionSettings()
+        {
+            return _sessionSettings;
         }
     }
 }

@@ -299,6 +299,16 @@ namespace ESAPIPatientBrowser.Services
             }
             catch { }
 
+            // Treatment sessions (delivered fractions)
+            try
+            {
+                if (planSetup.TreatmentSessions != null)
+                {
+                    planInfo.DeliveredFractions = planSetup.TreatmentSessions.Count();
+                }
+            }
+            catch { }
+
             return planInfo;
         }
 
@@ -584,6 +594,15 @@ namespace ESAPIPatientBrowser.Services
             if (criteria.HasDVHEstimates.HasValue)
             {
                 if (!plan.HasDVHEstimates.HasValue || plan.HasDVHEstimates.Value != criteria.HasDVHEstimates.Value)
+                {
+                    return false;
+                }
+            }
+
+            // Has Treatment (at least one delivered fraction)
+            if (criteria.HasTreatment.HasValue && criteria.HasTreatment.Value)
+            {
+                if (plan.DeliveredFractions == 0)
                 {
                     return false;
                 }

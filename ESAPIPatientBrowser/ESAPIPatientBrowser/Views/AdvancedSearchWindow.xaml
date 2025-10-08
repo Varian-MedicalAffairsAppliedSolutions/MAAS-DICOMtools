@@ -37,6 +37,43 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         
+        <!-- Countdown Timer Overlay (Top Right Corner) -->
+        <Border x:Name="CountdownTimerBorder" 
+                Grid.Row="0" 
+                HorizontalAlignment="Right" 
+                VerticalAlignment="Top" 
+                Background="#2C3E50" 
+                BorderBrush="#3498DB" 
+                BorderThickness="2" 
+                CornerRadius="6" 
+                Padding="12,8" 
+                Margin="0,0,0,0"
+                Visibility="Collapsed"
+                Panel.ZIndex="1000">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Text="⏱ Search Starting In:" 
+                           FontSize="11" 
+                           FontWeight="Bold" 
+                           Foreground="#3498DB" 
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,4"/>
+                <TextBlock x:Name="CountdownTimerText" 
+                           Text="00:00:00" 
+                           FontSize="24" 
+                           FontWeight="Bold" 
+                           Foreground="#2ECC71" 
+                           HorizontalAlignment="Center"
+                           FontFamily="Consolas"/>
+                <TextBlock x:Name="CountdownTargetTime" 
+                           Text="" 
+                           FontSize="9" 
+                           FontStyle="Italic" 
+                           Foreground="#BDC3C7" 
+                           HorizontalAlignment="Center"
+                           Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+        
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,8">
             <!-- WARNING MESSAGE -->
@@ -90,6 +127,60 @@
                 <CheckBox x:Name="HasPlansCheckBox" IsChecked="True" Foreground="White" Margin="0,0,0,12"
                           ToolTip="Only show patients with at least one plan. Changes sync back to main window.">
                     <TextBlock Text="Has plans" Foreground="White"/>
+                </CheckBox>
+                
+                <!-- Delayed Search Start -->
+                <CheckBox x:Name="DelaySearchCheckBox" Foreground="White" Margin="0,0,0,8"
+                          Checked="DelaySearchCheckBox_Checked" Unchecked="DelaySearchCheckBox_Unchecked"
+                          ToolTip="Schedule the search to start automatically after a specified delay">
+                    <TextBlock Text="Delay search start" Foreground="White"/>
+                </CheckBox>
+                
+                <StackPanel x:Name="DelaySearchPanel" Visibility="Collapsed" Margin="20,0,0,12">
+                    <Label Content="Start search in (minutes):"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="DelayMinutesTextBox" Grid.Column="1" Text="30" 
+                                 ToolTip="Number of minutes to wait before starting the search (e.g., 30, 60, 120)"
+                                 PreviewTextInput="NumberValidationTextBox"
+                                 TextChanged="DelayMinutesTextBox_TextChanged"/>
+                        <TextBlock Grid.Column="2" Text="minutes" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="LightGray"/>
+                    </Grid>
+                    <TextBlock x:Name="ScheduledTimeDisplay" Foreground="LightGreen" FontStyle="Italic" Margin="0,0,0,4"/>
+                </StackPanel>
+                
+                <!-- Patient Limit -->
+                <CheckBox x:Name="LimitPatientsCheckBox" Foreground="White" Margin="0,0,0,8"
+                          Checked="LimitPatientsCheckBox_Checked" Unchecked="LimitPatientsCheckBox_Unchecked"
+                          ToolTip="Stop searching after finding a specified number of matching patients">
+                    <TextBlock Text="Limit number of results" Foreground="White"/>
+                </CheckBox>
+                
+                <StackPanel x:Name="LimitPatientsPanel" Visibility="Collapsed" Margin="20,0,0,12">
+                    <Label Content="Stop after finding this many patients:"/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="PatientLimitTextBox" Grid.Column="1" Text="10" 
+                                 ToolTip="Search will stop after finding this many matching patients (e.g., 5, 10, 20, 50)"
+                                 PreviewTextInput="NumberValidationTextBox"/>
+                        <TextBlock Grid.Column="2" Text="patients" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="LightGray"/>
+                    </Grid>
+                    <TextBlock Text="⚡ This can significantly speed up searches with many results" 
+                               Foreground="LightGreen" FontStyle="Italic" FontSize="11" Margin="0,0,0,4"/>
+                </StackPanel>
+                
+                <!-- Has Treatment Filter -->
+                <CheckBox x:Name="HasTreatmentCheckBox" Foreground="White" Margin="0,0,0,12"
+                          ToolTip="Only show plans where at least one treatment fraction has been delivered">
+                    <TextBlock Text="Has treatment (at least 1 fraction delivered)" Foreground="White"/>
                 </CheckBox>
                 
                 <!-- SECTION: Basic Plan Info -->

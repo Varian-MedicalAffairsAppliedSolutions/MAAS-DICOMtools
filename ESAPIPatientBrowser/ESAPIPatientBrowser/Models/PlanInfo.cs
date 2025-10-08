@@ -41,6 +41,7 @@ namespace ESAPIPatientBrowser.Models
         private string _imageOrientation;
         private bool? _isDoseValid;
         private bool? _hasDVHEstimates;
+        private int _deliveredFractions;
 
         public string PatientId
         {
@@ -238,6 +239,12 @@ namespace ESAPIPatientBrowser.Models
         {
             get => _hasDVHEstimates;
             set { _hasDVHEstimates = value; OnPropertyChanged(); }
+        }
+
+        public int DeliveredFractions
+        {
+            get => _deliveredFractions;
+            set { _deliveredFractions = value; OnPropertyChanged(); }
         }
 
         public bool IsSelected

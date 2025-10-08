@@ -75,7 +75,7 @@ namespace ESAPIPatientBrowser.Services
         /// <summary>
         /// Searches for patients by various criteria
         /// </summary>
-        public List<PatientInfo> SearchPatients(string searchText = "", DateTime? fromDate = null, DateTime? toDate = null, int maxResults = 100)
+        public List<PatientInfo> SearchPatients(string searchText = "", DateTime? fromDate = null, DateTime? toDate = null, int? maxResults = null)
         {
             var results = new List<PatientInfo>();
 
@@ -104,8 +104,14 @@ namespace ESAPIPatientBrowser.Services
                     filteredSummaries = filteredSummaries.Where(p => MatchesSearchTerms(p, searchTerms));
                 }
 
-                // Order by creation date (most recent first) and take max results
-                filteredSummaries = filteredSummaries.OrderByDescending(p => p.CreationDateTime).Take(maxResults);
+                // Order by creation date (most recent first)
+                filteredSummaries = filteredSummaries.OrderByDescending(p => p.CreationDateTime);
+                
+                // Apply limit only if specified
+                if (maxResults.HasValue)
+                {
+                    filteredSummaries = filteredSummaries.Take(maxResults.Value);
+                }
 
                 // Convert to PatientInfo objects and load plans
                 foreach (var summary in filteredSummaries)

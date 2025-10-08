@@ -1,6 +1,8 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
 using ESAPIPatientBrowser.Models;
 using ESAPIPatientBrowser.Services;
 using MahApps.Metro.Controls;
@@ -17,6 +19,14 @@ namespace ESAPIPatientBrowser.Views
         public DateTime? FromDate { get; private set; }
         public DateTime? ToDate { get; private set; }
         public bool ShowOnlyPatientsWithPlans { get; private set; }
+        
+        // Delayed search properties
+        private DispatcherTimer _delayTimer;
+        private DispatcherTimer _countdownTimer;
+        private DateTime _scheduledSearchTime;
+        
+        // Patient limit property
+        public int? PatientLimit { get; private set; }
 
         public AdvancedSearchWindow(string searchText = "", DateTime? fromDate = null, DateTime? toDate = null, bool showOnlyPatientsWithPlans = true)
         {
@@ -26,22 +36,35 @@ namespace ESAPIPatientBrowser.Views
             // Set values from main UI
             PatientSearchTextBox.Text = searchText;
             
-            // Set default date range to 5 years back if no dates provided
-            // This helps prevent searching through too many patients
-            if (!fromDate.HasValue && !toDate.HasValue)
+            // Load session settings first (takes precedence over parameters)
+            var sessionSettings = SettingsService.LoadSessionSettings();
+            
+            // Use session date range if available, otherwise use parameters or defaults
+            if (sessionSettings.FromDate.HasValue || sessionSettings.ToDate.HasValue)
             {
-                FromDatePicker.SelectedDate = DateTime.Now.AddYears(-5);
-                ToDatePicker.SelectedDate = DateTime.Now;
+                FromDatePicker.SelectedDate = sessionSettings.FromDate ?? DateTime.Now.AddYears(-5);
+                ToDatePicker.SelectedDate = sessionSettings.ToDate ?? DateTime.Now;
+            }
+            else if (fromDate.HasValue || toDate.HasValue)
+            {
+                FromDatePicker.SelectedDate = fromDate ?? DateTime.Now.AddYears(-5);
+                ToDatePicker.SelectedDate = toDate ?? DateTime.Now;
             }
             else
             {
-                FromDatePicker.SelectedDate = fromDate;
-                ToDatePicker.SelectedDate = toDate;
+                // Set default date range to 5 years back
+                FromDatePicker.SelectedDate = DateTime.Now.AddYears(-5);
+                ToDatePicker.SelectedDate = DateTime.Now;
             }
             
-            HasPlansCheckBox.IsChecked = showOnlyPatientsWithPlans;
+            // Load session checkbox states
+            HasPlansCheckBox.IsChecked = sessionSettings.ShowOnlyPatientsWithPlans;
+            DelaySearchCheckBox.IsChecked = sessionSettings.DelaySearchEnabled;
+            DelayMinutesTextBox.Text = sessionSettings.DelayMinutes.ToString();
+            LimitPatientsCheckBox.IsChecked = sessionSettings.LimitPatientsEnabled;
+            PatientLimitTextBox.Text = sessionSettings.PatientLimit.ToString();
             
-            // Load and populate saved settings
+            // Load and populate saved criteria settings
             LoadSavedSettings();
         }
 
@@ -127,6 +150,9 @@ namespace ESAPIPatientBrowser.Views
                         }
                     }
                 }
+                
+                // Populate HasTreatment checkbox
+                HasTreatmentCheckBox.IsChecked = savedCriteria.HasTreatment ?? false;
             }
             catch (Exception ex)
             {
@@ -136,6 +162,23 @@ namespace ESAPIPatientBrowser.Views
         }
 
         private void SearchButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Check if delayed search is enabled
+            if (DelaySearchCheckBox.IsChecked == true && _delayTimer == null)
+            {
+                // Start delayed search instead of immediate search
+                StartDelayedSearch();
+                return;
+            }
+            
+            // Execute immediate search
+            ExecuteSearch();
+        }
+        
+        /// <summary>
+        /// Executes the search with current criteria
+        /// </summary>
+        private void ExecuteSearch()
         {
             // Create criteria from UI inputs
             SearchCriteria = new AdvancedSearchCriteria
@@ -334,6 +377,12 @@ namespace ESAPIPatientBrowser.Views
             {
                 SearchCriteria.HasDVHEstimates = (bool)hasDVHItem.Tag;
             }
+            
+            // Parse HasTreatment checkbox
+            if (HasTreatmentCheckBox.IsChecked == true)
+            {
+                SearchCriteria.HasTreatment = true;
+            }
 
             // Debug output to verify criteria
             System.Diagnostics.Debug.WriteLine("=== Search Criteria Created ===");
@@ -344,7 +393,7 @@ namespace ESAPIPatientBrowser.Views
             System.Diagnostics.Debug.WriteLine($"MinDose: {SearchCriteria.MinDose}");
             System.Diagnostics.Debug.WriteLine($"MaxDose: {SearchCriteria.MaxDose}");
 
-            // Save settings for next time
+            // Save criteria settings for next time (persisted to disk)
             SettingsService.SaveAdvancedSearchCriteria(SearchCriteria);
 
             // Capture patient filter values to sync back to main UI
@@ -352,6 +401,27 @@ namespace ESAPIPatientBrowser.Views
             FromDate = FromDatePicker.SelectedDate;
             ToDate = ToDatePicker.SelectedDate;
             ShowOnlyPatientsWithPlans = HasPlansCheckBox.IsChecked ?? false;
+            
+            // Capture patient limit if enabled
+            if (LimitPatientsCheckBox.IsChecked == true)
+            {
+                if (int.TryParse(PatientLimitTextBox.Text, out int limit) && limit > 0)
+                {
+                    PatientLimit = limit;
+                }
+                else
+                {
+                    ShowValidationError("Please enter a valid positive number for the patient limit.");
+                    return;
+                }
+            }
+            else
+            {
+                PatientLimit = null;
+            }
+            
+            // Save session settings (in-memory only, for within-session persistence)
+            SaveCurrentSessionSettings();
 
             SearchInitiated = true;
             DialogResult = true;
@@ -360,9 +430,31 @@ namespace ESAPIPatientBrowser.Views
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
+            // Save session settings even when canceling (for next time window opens)
+            SaveCurrentSessionSettings();
+            
             SearchInitiated = false;
             DialogResult = false;
             Close();
+        }
+        
+        /// <summary>
+        /// Saves current UI state to session settings (in-memory)
+        /// </summary>
+        private void SaveCurrentSessionSettings()
+        {
+            var sessionSettings = new AdvancedSearchSessionSettings
+            {
+                FromDate = FromDatePicker.SelectedDate,
+                ToDate = ToDatePicker.SelectedDate,
+                ShowOnlyPatientsWithPlans = HasPlansCheckBox.IsChecked ?? true,
+                DelaySearchEnabled = DelaySearchCheckBox.IsChecked ?? false,
+                DelayMinutes = int.TryParse(DelayMinutesTextBox.Text, out int mins) && mins > 0 ? mins : 30,
+                LimitPatientsEnabled = LimitPatientsCheckBox.IsChecked ?? false,
+                PatientLimit = int.TryParse(PatientLimitTextBox.Text, out int limit) && limit > 0 ? limit : 10
+            };
+            
+            SettingsService.SaveSessionSettings(sessionSettings);
         }
 
         private void ClearFiltersButton_Click(object sender, RoutedEventArgs e)
@@ -418,6 +510,9 @@ namespace ESAPIPatientBrowser.Views
             IsDoseValidComboBox.SelectedIndex = 0;
             AutoCropComboBox.SelectedIndex = 0;
             HasDVHEstimatesComboBox.SelectedIndex = 0;
+            
+            // Reset checkboxes
+            HasTreatmentCheckBox.IsChecked = false;
 
             // Clear saved settings
             SettingsService.ClearAdvancedSearchCriteria();
@@ -431,6 +526,218 @@ namespace ESAPIPatientBrowser.Views
         private void ShowValidationError(string message)
         {
             ThemedMessageBox.Show(message, "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        
+        /// <summary>
+        /// Handles the DelaySearchCheckBox checked event
+        /// </summary>
+        private void DelaySearchCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            DelaySearchPanel.Visibility = Visibility.Visible;
+            UpdateScheduledTime();
+        }
+        
+        /// <summary>
+        /// Handles the DelaySearchCheckBox unchecked event
+        /// </summary>
+        private void DelaySearchCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            DelaySearchPanel.Visibility = Visibility.Collapsed;
+            
+            // Cancel any existing timer
+            if (_delayTimer != null)
+            {
+                _delayTimer.Stop();
+                _delayTimer = null;
+            }
+            
+            // Stop countdown timer
+            StopCountdownTimer();
+            
+            ScheduledTimeDisplay.Text = "";
+        }
+        
+        /// <summary>
+        /// Number validation for TextBox input
+        /// </summary>
+        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
+        {
+            // Only allow digits
+            e.Handled = !int.TryParse(e.Text, out _);
+        }
+        
+        /// <summary>
+        /// Handles TextChanged event for delay minutes textbox
+        /// </summary>
+        private void DelayMinutesTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (DelaySearchCheckBox.IsChecked == true)
+            {
+                UpdateScheduledTime();
+            }
+        }
+        
+        /// <summary>
+        /// Handles the LimitPatientsCheckBox checked event
+        /// </summary>
+        private void LimitPatientsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            LimitPatientsPanel.Visibility = Visibility.Visible;
+        }
+        
+        /// <summary>
+        /// Handles the LimitPatientsCheckBox unchecked event
+        /// </summary>
+        private void LimitPatientsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            LimitPatientsPanel.Visibility = Visibility.Collapsed;
+        }
+        
+        /// <summary>
+        /// Updates the scheduled search time display
+        /// </summary>
+        private void UpdateScheduledTime()
+        {
+            if (!int.TryParse(DelayMinutesTextBox.Text, out int minutes) || minutes <= 0)
+            {
+                ScheduledTimeDisplay.Text = "Please enter a valid number of minutes";
+                ScheduledTimeDisplay.Foreground = System.Windows.Media.Brushes.Orange;
+                return;
+            }
+            
+            _scheduledSearchTime = DateTime.Now.AddMinutes(minutes);
+            ScheduledTimeDisplay.Text = $"Search will start at: {_scheduledSearchTime:h:mm:ss tt}";
+            ScheduledTimeDisplay.Foreground = System.Windows.Media.Brushes.LightGreen;
+        }
+        
+        /// <summary>
+        /// Initiates a delayed search by starting a timer
+        /// </summary>
+        private void StartDelayedSearch()
+        {
+            if (!int.TryParse(DelayMinutesTextBox.Text, out int minutes) || minutes <= 0)
+            {
+                ShowValidationError("Please enter a valid number of minutes for the delayed search.");
+                return;
+            }
+            
+            // Calculate scheduled time
+            _scheduledSearchTime = DateTime.Now.AddMinutes(minutes);
+            
+            // Create and start timer
+            _delayTimer = new DispatcherTimer();
+            _delayTimer.Interval = TimeSpan.FromMinutes(minutes);
+            _delayTimer.Tick += DelayTimer_Tick;
+            _delayTimer.Start();
+            
+            // Start countdown timer
+            StartCountdownTimer();
+            
+            // Minimize the window (assume user is gone)
+            this.WindowState = WindowState.Minimized;
+            
+            // Update display
+            ScheduledTimeDisplay.Text = $"Search scheduled for: {_scheduledSearchTime:h:mm:ss tt} (Window minimized)";
+            ScheduledTimeDisplay.Foreground = System.Windows.Media.Brushes.Yellow;
+        }
+        
+        /// <summary>
+        /// Starts the countdown timer display
+        /// </summary>
+        private void StartCountdownTimer()
+        {
+            // Show the countdown timer
+            CountdownTimerBorder.Visibility = Visibility.Visible;
+            
+            // Set target time
+            CountdownTargetTime.Text = $"Target: {_scheduledSearchTime:h:mm:ss tt}";
+            
+            // Create countdown timer that updates every second
+            _countdownTimer = new DispatcherTimer();
+            _countdownTimer.Interval = TimeSpan.FromSeconds(1);
+            _countdownTimer.Tick += CountdownTimer_Tick;
+            _countdownTimer.Start();
+            
+            // Update immediately
+            UpdateCountdownDisplay();
+        }
+        
+        /// <summary>
+        /// Updates the countdown display
+        /// </summary>
+        private void UpdateCountdownDisplay()
+        {
+            TimeSpan remaining = _scheduledSearchTime - DateTime.Now;
+            
+            if (remaining.TotalSeconds <= 0)
+            {
+                CountdownTimerText.Text = "00:00:00";
+                CountdownTimerText.Foreground = System.Windows.Media.Brushes.Red;
+                return;
+            }
+            
+            // Format as HH:MM:SS
+            CountdownTimerText.Text = $"{(int)remaining.TotalHours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+            
+            // Change color based on time remaining
+            if (remaining.TotalMinutes <= 1)
+            {
+                CountdownTimerText.Foreground = System.Windows.Media.Brushes.Red;
+            }
+            else if (remaining.TotalMinutes <= 5)
+            {
+                CountdownTimerText.Foreground = System.Windows.Media.Brushes.Orange;
+            }
+            else
+            {
+                CountdownTimerText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0x2E, 0xCC, 0x71)); // Green
+            }
+        }
+        
+        /// <summary>
+        /// Countdown timer tick event
+        /// </summary>
+        private void CountdownTimer_Tick(object sender, EventArgs e)
+        {
+            UpdateCountdownDisplay();
+        }
+        
+        /// <summary>
+        /// Stops and hides the countdown timer
+        /// </summary>
+        private void StopCountdownTimer()
+        {
+            if (_countdownTimer != null)
+            {
+                _countdownTimer.Stop();
+                _countdownTimer = null;
+            }
+            CountdownTimerBorder.Visibility = Visibility.Collapsed;
+        }
+        
+        /// <summary>
+        /// Timer tick event that triggers the search
+        /// </summary>
+        private void DelayTimer_Tick(object sender, EventArgs e)
+        {
+            // Stop and dispose timers
+            _delayTimer.Stop();
+            _delayTimer = null;
+            StopCountdownTimer();
+            
+            // Restore window if minimized
+            if (this.WindowState == WindowState.Minimized)
+            {
+                this.WindowState = WindowState.Normal;
+                this.Activate();
+            }
+            
+            // Uncheck the delay checkbox to prevent infinite loop
+            DelaySearchCheckBox.IsChecked = false;
+            
+            // Execute the search directly (don't call SearchButton_Click which would start another delay)
+            ExecuteSearch();
         }
     }
 }

@@ -43,6 +43,9 @@ namespace ESAPIPatientBrowser.Models
         public bool? IsDoseValid { get; set; }
         public bool? AutoCrop { get; set; }
         public bool? HasDVHEstimates { get; set; }
+        
+        // Treatment filter
+        public bool? HasTreatment { get; set; }
 
         public bool IsEmpty()
         {
@@ -77,7 +80,8 @@ namespace ESAPIPatientBrowser.Models
                    string.IsNullOrWhiteSpace(ImageOrientationContains) &&
                    !IsDoseValid.HasValue &&
                    !AutoCrop.HasValue &&
-                   !HasDVHEstimates.HasValue;
+                   !HasDVHEstimates.HasValue &&
+                   !HasTreatment.HasValue;
         }
     }
 }
