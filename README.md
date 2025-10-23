@@ -20,12 +20,6 @@ Data not connected to any plan is managed as well and called unconnected. All co
   - Multi-patient batch file generation with proper per-patient/per-plan command separation
   - Settings management with persistent storage
 
-### Improvements
-- Fixed multi-patient batch generation to correctly handle patient-specific plan filters
-- Improved error handling and logging for selective retrieval operations
-- Enhanced plan filtering logic to work with RT-Plan Label field
-- Better handling of approval status filtering with `--onlyApprovedPlans`
-
 ## Previous Versions
 
 ### V1.2
@@ -189,8 +183,8 @@ The UI seamlessly integrates with the ESAPIPatientBrowser application:
 
 **Example Generated Batch Command:**
 ```batch
-"%_DT_EXE%" retrieve --patientId "KU_PMRT_9" --path "C:\Temp\DICOMExport\20251015\KU_PMRT_9" --planId "RAD Model2" --force --showTree --hostName "172.20.169.117" --hostPort "51402" --callingAet "PYNETDICOM" --calledAet "ECLIPSE_DB"
-"%_DT_EXE%" retrieve --patientId "KU_PMRT_8" --path "C:\Temp\DICOMExport\20251015\KU_PMRT_8" --planId "Plan9" --force --showTree --hostName "172.20.169.117" --hostPort "51402" --callingAet "PYNETDICOM" --calledAet "ECLIPSE_DB"
+"%_DT_EXE%" retrieve --patientId "RapidPlan_1" --path "C:\Temp\DICOMExport\20251015\RapidPlan_1" --planId "RAD Model2" --force --showTree --hostName "172.20.169.117" --hostPort "51402" --callingAet "PYNETDICOM" --calledAet "ECLIPSE_DB"
+"%_DT_EXE%" retrieve --patientId "RapidPlan_2" --path "C:\Temp\DICOMExport\20251015\RapidPlan_2" --planId "Plan9" --force --showTree --hostName "172.20.169.117" --hostPort "51402" --callingAet "PYNETDICOM" --calledAet "ECLIPSE_DB"
 ```
 
 ## Store
