@@ -221,32 +221,21 @@ namespace ESAPIPatientBrowser.Services
                 if (string.IsNullOrEmpty(indexDir)) return;
 
                 var jsonPath = Path.Combine(indexDir, "handoff_patients.json");
-                var idsPath = Path.Combine(indexDir, "handoff_patient_ids.txt");
-                var idsJsPath = Path.Combine(indexDir, "handoff_patient_ids.js");
                 var handoffJsPath = Path.Combine(indexDir, "handoff_patients.js");
 
-                // Write handoff files
+                // Write JSON file (for manual import via "Import JSON" button)
                 _jsonExportService.ExportToPath(handoffCollection, jsonPath);
-                File.WriteAllText(idsPath, handoffCollection.PatientIdString ?? string.Empty, Encoding.UTF8);
 
-                // Write JavaScript bootstrap for file:// protocol support
-                var totalPatients = handoffCollection.TotalPatients;
-                var totalPlans = handoffCollection.TotalPlans;
-                var jsContent = "(function(){ try { window.PATIENT_IDS = '" +
-                                (handoffCollection.PatientIdString ?? string.Empty).Replace("\\", "\\\\").Replace("'", "\\'") +
-                                "'; window.HANDOFF_DATA = { totalPatients: " + totalPatients +
-                                ", totalPlans: " + totalPlans + " }; } catch(e){} })();";
-                File.WriteAllText(idsJsPath, jsContent, Encoding.UTF8);
-
-                // Write full handoff JSON as JavaScript
+                // Write full handoff data as JavaScript (for auto-load on page launch)
                 try
                 {
                     var compactJson = handoffCollection.ToJson(formatted: false);
                     var handoffJs = "(function(){ try { window.HANDOFF_FULL = " + compactJson + "; } catch(e){} })();";
                     File.WriteAllText(handoffJsPath, handoffJs, Encoding.UTF8);
                 }
-                catch
+                catch (Exception jsEx)
                 {
+                    Debug.WriteLine("Failed writing handoff JS: " + jsEx.Message);
                     // Non-fatal if full handoff fails
                 }
             }
