@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DICOM Tools</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 600px;
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .description {
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .disclaimer {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .disclaimer h3 {
+            color: #856404;
+            margin-top: 0;
+        }
+        
+        .start-button {
+            background-color: #3498db;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        
+        .start-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DICOM Tools</h1>
+        
+        <div class="description">
+            <p>Access DICOM Retrieve, Store, Search, and Show tools with an HTML/JS UI. For educational/research use only.</p>
+        </div>
+        
+        <div class="disclaimer">
+            <h3>⚠️ Important Notice</h3>
+            <p><strong>This software is for educational and research purposes only. It is NOT validated for clinical use.</strong></p>
+            <p>By using this tool, you acknowledge that:</p>
+            <ul>
+                <li>This tool is intended for educational and research applications only</li>
+                <li>It has not been validated for clinical use</li>
+                <li>You will comply with the Varian Limited Use Software License Agreement</li>
+            </ul>
+        </div>
+        
+        <div id="onlineSection">
+            <h2>Registration Required</h2>
+            <p>Please complete the registration form below to access DICOM Tools.</p>
+            
+            <div class="jotform-container" style="margin: 20px 0; min-height: 600px;">
+                <iframe
+                  id="JotFormIFrame-252614677190158"
+                  title="Varian Limited Use Software License Agreement (DICOMTools)"
+                  onload="window.parent.scrollTo(0,0)"
+                  allowtransparency="true"
+                  allow="geolocation; microphone; camera; fullscreen; payment"
+                  src="https://form.jotform.com/252614677190158"
+                  frameborder="0"
+                  style="min-width:100%;max-width:100%;height:539px;border:none;"
+                  scrolling="no"
+                >
+                </iframe>
+                <script src='https://cdn.jotfor.ms/s/umd/latest/for-form-embed-handler.js'></script>
+                <script>window.jotformEmbedHandler("iframe[id='JotFormIFrame-252614677190158']", "https://form.jotform.com/")</script>
+                <div style="text-align: center; margin-top: 20px; padding: 15px; background-color: #f0f8ff; border: 1px solid #4dabf7; border-radius: 4px;">
+                    <p style="margin: 0 0 10px 0; color: #0c5460;"><strong>Completed the registration form?</strong></p>
+                    <p style="margin: 0 0 15px 0; font-size: 0.95em; color: #0c5460;">Enter the registration code you received to unlock the tool.</p>
+                    <div style="margin-top: 0; text-align: center;">
+                        <label for="registrationCodeOnline" style="display: block; margin-bottom: 10px; font-weight: bold;">Registration code</label>
+                        <input type="text" id="registrationCodeOnline" placeholder="" maxlength="8" style="width: 200px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; text-align: center; text-transform: uppercase;" />
+                        <button onclick="submitCodeOnline()" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; font-size: 16px;">Submit Code</button>
+                    </div>
+                    <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">Press Enter or click Submit after entering your code.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="offlineSection" style="display: none;">
+            <div style="text-align: center; margin: 30px 0;">
+                <h3>📱 Scan QR Code to Register:</h3>
+                <img src="resources/qrcode.bmp" alt="Registration QR Code" style="max-width: 200px; border: 2px solid #dee2e6; border-radius: 8px; padding: 10px; background: #f8f9fa;" />
+                <p style="margin: 15px 0; font-family: monospace; font-size: 0.9em; color: #666;">
+                    <strong>https://varian-medicalaffairsappliedsolutions.github.io/MAAS-DICOMtools/</strong>
+                </p>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0; padding: 20px; background-color: #e9ecef; border-radius: 6px;">
+                <label for="registrationCode" style="display: block; margin-bottom: 10px; font-weight: bold;">Enter Registration Code:</label>
+                <input type="text" id="registrationCode" placeholder="" maxlength="8" style="width: 200px; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; text-align: center; text-transform: uppercase;" />
+                <button onclick="submitCode()" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; font-size: 16px;">Submit Code</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>By using this software, you agree to be bound by the terms of the <a href="VarianLUSLA.html" target="_blank">Varian Limited Use Software License Agreement</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Preserve version/build/dataFile when redirecting
+        function getQuery() {
+            const p = new URLSearchParams(location.search);
+            const keep = ['dataFile','version','build'];
+            const out = [];
+            keep.forEach(k=>{ const v=p.get(k); if(v) out.push(k+'='+encodeURIComponent(v)); });
+            return out.length ? ('?'+out.join('&')) : '';
+        }
+        
+        function submitCode() {
+            const input = document.getElementById('registrationCode');
+            const token = input.value.trim().toUpperCase();
+            if (!token) {
+                alert('Please enter a registration code.');
+                return;
+            }
+            const validToken = '436804B1';
+            if (token === validToken) {
+                localStorage.setItem('combinedapp_registered', 'true');
+                localStorage.setItem('combinedapp_registration_timestamp', new Date().toISOString());
+                localStorage.setItem('combinedapp_registration_method', 'qr_code');
+                localStorage.setItem('combinedapp_registration_token', token);
+                alert('Registration successful!');
+                window.location.href = '../index.html' + getQuery();
+            } else {
+                alert('Invalid registration code. Please check your code and try again.');
+                input.focus();
+                input.select();
+            }
+        }
+        
+        function submitCodeOnline() {
+            const input = document.getElementById('registrationCodeOnline');
+            const token = input.value.trim().toUpperCase();
+            if (!token) {
+                alert('Please enter a registration code.');
+                return;
+            }
+            const validToken = '436804B1';
+            if (token === validToken) {
+                localStorage.setItem('combinedapp_registered', 'true');
+                localStorage.setItem('combinedapp_registration_timestamp', new Date().toISOString());
+                localStorage.setItem('combinedapp_registration_method', 'online_form');
+                localStorage.setItem('combinedapp_registration_token', token);
+                alert('Registration successful!');
+                window.location.href = '../index.html' + getQuery();
+            } else {
+                alert('Invalid registration code. Please check your code and try again.');
+                input.focus();
+                input.select();
+            }
+        }
+        
+        // Check if already registered and redirect if so
+        window.addEventListener('load', function() {
+            const isRegistered = localStorage.getItem('combinedapp_registered');
+            const token = localStorage.getItem('combinedapp_registration_token');
+            if (isRegistered === 'true' && token === '436804B1') {
+                window.location.href = '../index.html' + getQuery();
+                return;
+            }
+            
+            // Check internet connection and show appropriate section
+            checkConnection();
+            
+            // Add Enter key support for offline input
+            const inputOffline = document.getElementById('registrationCode');
+            if (inputOffline) {
+                inputOffline.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') submitCode();
+                });
+            }
+            
+            // Add Enter key support for online input
+            const inputOnline = document.getElementById('registrationCodeOnline');
+            if (inputOnline) {
+                inputOnline.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') submitCodeOnline();
+                });
+            }
+        });
+        
+        function checkConnection() {
+            if (!navigator.onLine) {
+                showOfflineMode();
+                return;
+            }
+            
+            // Test actual internet connectivity
+            const img = new Image();
+            const timeout = setTimeout(function() { showOfflineMode(); }, 5000);
+            img.onload = function() { clearTimeout(timeout); showOnlineMode(); };
+            img.onerror = function() { clearTimeout(timeout); showOfflineMode(); };
+            img.src = 'https://www.google.com/favicon.ico?t=' + Date.now();
+        }
+        
+        function showOnlineMode() {
+            document.getElementById('onlineSection').style.display = 'block';
+            document.getElementById('offlineSection').style.display = 'none';
+        }
+        
+        function showOfflineMode() {
+            document.getElementById('onlineSection').style.display = 'none';
+            document.getElementById('offlineSection').style.display = 'block';
+        }
+        
+        window.addEventListener('online', checkConnection);
+        window.addEventListener('offline', checkConnection);
+
+        // No version/build badges
+    </script>
+</body>
+</html>
+

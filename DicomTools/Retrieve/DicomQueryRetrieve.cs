@@ -81,9 +81,9 @@ namespace DicomTools.Retrieve
             return studies;
         }
 
-        internal async Task<List<Series>> FindSeries(Study study)
+        internal async Task<List<Series>> FindSeries(Study study, string modality = "")
         {
-            var findRequest = CreateSeriesRequestByStudyUid(study.InstanceUid);
+            var findRequest = CreateSeriesRequestByStudyUid(study.InstanceUid, modality);
 
             var listOfSeries = new List<Series>();
             findRequest.OnResponseReceived += (req, response) =>
@@ -215,7 +215,7 @@ namespace DicomTools.Retrieve
             return request;
         }
 
-        public static DicomCFindRequest CreateSeriesRequestByStudyUid(DicomUID studyInstanceUid)
+        public static DicomCFindRequest CreateSeriesRequestByStudyUid(DicomUID studyInstanceUid, string modality = "")
         {
             var request = new DicomCFindRequest(DicomQueryRetrieveLevel.Series);
 
@@ -226,13 +226,97 @@ namespace DicomTools.Retrieve
             request.Dataset.AddOrUpdate(DicomTag.SeriesInstanceUID, "");
             request.Dataset.AddOrUpdate(DicomTag.SeriesDescription, "");
             request.Dataset.AddOrUpdate(DicomTag.SeriesDate, "");
-            request.Dataset.AddOrUpdate(DicomTag.Modality, "");
+            request.Dataset.AddOrUpdate(DicomTag.Modality, modality); // Filter by modality if specified
             request.Dataset.AddOrUpdate(DicomTag.NumberOfSeriesRelatedInstances, "");
 
             // add the dicom tags that contain the filter criteria
             request.Dataset.AddOrUpdate(DicomTag.StudyInstanceUID, studyInstanceUid);
 
             return request;
+        }
+
+        private static DicomCFindRequest CreateInstanceRequestBySeriesUid(DicomUID studyInstanceUid, DicomUID seriesInstanceUid)
+        {
+            var request = new DicomCFindRequest(DicomQueryRetrieveLevel.Image);
+
+            request.Dataset.AddOrUpdate(new DicomTag(0x8, 0x5), "ISO_IR 100");
+
+            // add the dicom tags with empty values that should be included in the result
+            request.Dataset.AddOrUpdate(DicomTag.PatientID, "");
+            request.Dataset.AddOrUpdate(DicomTag.SOPInstanceUID, "");
+            request.Dataset.AddOrUpdate(DicomTag.SOPClassUID, "");
+            request.Dataset.AddOrUpdate(DicomTag.InstanceNumber, "");
+
+            // add the dicom tags that contain the filter criteria
+            request.Dataset.AddOrUpdate(DicomTag.StudyInstanceUID, studyInstanceUid);
+            request.Dataset.AddOrUpdate(DicomTag.SeriesInstanceUID, seriesInstanceUid);
+
+            return request;
+        }
+
+        internal async Task<List<DicomUID>> FindInstancesInSeries(Series series)
+        {
+            var findRequest = CreateInstanceRequestBySeriesUid(series.StudyInstanceUid, series.InstanceUid);
+
+            var instanceUids = new List<DicomUID>();
+            findRequest.OnResponseReceived += (req, response) =>
+            {
+                if (response.Status == DicomStatus.Pending)
+                {
+                    var instanceUid = response.Dataset.GetSingleValue<DicomUID>(DicomTag.SOPInstanceUID);
+                    instanceUids.Add(instanceUid);
+                }
+                else if (response.Status == DicomStatus.Success)
+                {
+                    // Do nothing, finished
+                }
+                else
+                {
+                    m_logger.LogError(response.ToString());
+                }
+            };
+            await m_client.AddRequestAsync(findRequest);
+            await m_client.SendAsync();
+
+            return instanceUids;
+        }
+
+        public async Task GetInstance(Series series, DicomUID instanceUid)
+        {
+            m_logger.LogInformation($"Get instance: {instanceUid.UID}");
+
+            var getRequest = new DicomCGetRequest(series.StudyInstanceUid.UID, series.InstanceUid.UID, instanceUid.UID);
+
+            getRequest.OnResponseReceived += (request, response) =>
+            {
+                if (response.Status == DicomStatus.Pending)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else if (response.Status == DicomStatus.Success)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else
+                    m_logger.LogError(response.ToString());
+            };
+
+            await m_client.AddRequestAsync(getRequest);
+            await m_client.SendAsync();
+        }
+
+        public async Task MoveInstance(Series series, DicomUID instanceUid)
+        {
+            var moveRequest = new DicomCMoveRequest(m_client.CallingAe, series.StudyInstanceUid.UID, series.InstanceUid.UID, instanceUid.UID);
+
+            moveRequest.OnResponseReceived += (request, response) =>
+            {
+                if (response.Status == DicomStatus.Pending)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else if (response.Status == DicomStatus.Success)
+                    m_logger.LogDebug($"Completed {response.Completed}, Remaining {response.Remaining}");
+                else
+                    m_logger.LogError(response.ToString());
+            };
+
+            await m_client.AddRequestAsync(moveRequest);
+            await m_client.SendAsync();
         }
 
         private readonly ILogger m_logger;

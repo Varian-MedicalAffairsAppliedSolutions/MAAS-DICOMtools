@@ -10,6 +10,8 @@ namespace DicomTools.Retrieve
 
         public bool OnlyApprovedPlans { get; set; }
 
+        public bool Force { get; set; }
+
         public string NewPatientId { get; set; } = string.Empty;
 
         public string NewPatientName { get; set; } = string.Empty;
@@ -37,6 +39,7 @@ namespace DicomTools.Retrieve
             other.PatientId = PatientId;
             other.PlanId = PlanId;
             other.OnlyApprovedPlans = OnlyApprovedPlans;
+            other.Force = Force;
             other.NewPatientId = NewPatientId;
             other.NewPatientName = NewPatientName;
             other.Anonymize = Anonymize;
