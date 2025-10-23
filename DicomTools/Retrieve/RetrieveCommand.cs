@@ -9,6 +9,7 @@ namespace DicomTools.Retrieve
             AddOption("--patientId", "Id of the patient to retrieve data.", isRequired: true, retrieveOptions?.PatientId ?? string.Empty);
             AddOption("--planId", "Id of the plan to retrieve data.", isRequired: false,retrieveOptions?.PlanId);
             AddOption("--onlyApprovedPlans", "Retrieve only approved plans.", isRequired: false, retrieveOptions?.OnlyApprovedPlans ?? false);
+            AddOption("--force", "Skip confirmation prompts and reuse existing data when possible.", isRequired: false, retrieveOptions?.Force ?? false);
             var newPatientIdOption = AddOption("--newPatientId", "New patient id for the saved data.", isRequired: false, retrieveOptions?.NewPatientId ?? string.Empty);
             var newPatientNameOption = AddOption("--newPatientName", "New patient name for the saved data.", isRequired: false, retrieveOptions?.NewPatientName ?? string.Empty);
             var anonymizeOption = AddOption("--anonymize", "Anonymize all the saved data.", isRequired: false, retrieveOptions?.Anonymize ?? false);

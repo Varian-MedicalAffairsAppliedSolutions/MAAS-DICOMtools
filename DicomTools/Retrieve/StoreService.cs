@@ -189,6 +189,33 @@ namespace DicomTools.Retrieve
                 MoveFile(imageInstance, targetPath);
         }
 
+        internal List<DataModel.RtPlan> FilterAndGetMatchingPlans()
+        {
+            var matchingPlans = new List<DataModel.RtPlan>();
+
+            foreach (var patientSeries in m_collectedPatientSeries)
+            {
+                var referenceTree = ReferenceTree.Create(m_logger, m_console, patientSeries.CollectedSeries);
+
+                foreach (var plan in referenceTree.Plans)
+                {
+                    // Apply filters
+                    if (!string.IsNullOrEmpty(m_globalRetrieveOptions.PlanId) && 
+                        plan.Instance.Label != m_globalRetrieveOptions.PlanId)
+                        continue;
+
+                    if (m_globalRetrieveOptions.OnlyApprovedPlans && 
+                        plan.Instance.ApprovalStatus != ApprovalStatus.Approved)
+                        continue;
+
+                    // This plan matches - add it
+                    matchingPlans.Add(plan.Instance);
+                }
+            }
+
+            return matchingPlans;
+        }
+
         private static void EnsureFolderExists(string folderName)
         {
             if (!Directory.Exists(folderName))
@@ -200,6 +227,7 @@ namespace DicomTools.Retrieve
             if (Directory.Exists(folderName))
                 Directory.Delete(folderName, recursive: true);
         }
+
 
         private readonly RetrieveOptions m_globalRetrieveOptions;
 
