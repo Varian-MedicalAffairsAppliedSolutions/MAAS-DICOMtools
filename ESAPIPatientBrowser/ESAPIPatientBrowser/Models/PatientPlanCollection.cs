@@ -20,6 +20,26 @@ namespace ESAPIPatientBrowser.Models
         public List<PatientInfo> Patients { get; set; } = new List<PatientInfo>();
 
         /// <summary>
+        /// Indicates whether optimization objectives were exported
+        /// </summary>
+        [JsonProperty("hasObjectives")]
+        public bool HasObjectives { get; set; } = false;
+
+        /// <summary>
+        /// Relative path to objectives staging folder (e.g., "Objectives")
+        /// Stored as relative path for portability - resolved relative to JSON file location
+        /// </summary>
+        [JsonProperty("objectivesStagingPath")]
+        public string ObjectivesStagingPath { get; set; }
+
+        /// <summary>
+        /// Mappings of objective files to patients/plans
+        /// Critical for handling anonymization - maps original patient IDs to objective filenames
+        /// </summary>
+        [JsonProperty("objectiveFiles")]
+        public List<ObjectiveFileMapping> ObjectiveFiles { get; set; } = new List<ObjectiveFileMapping>();
+
+        /// <summary>
         /// Gets a flattened list of Patient IDs for DICOM tools
         /// </summary>
         [JsonIgnore]
@@ -58,5 +78,24 @@ namespace ESAPIPatientBrowser.Models
 
             return $"Selected: {selectedPatients.Count} patients, {selectedPlans.Count} plans";
         }
+    }
+
+    /// <summary>
+    /// Maps optimization objective files to their corresponding patient/plan
+    /// Used by batch files to copy objective files to correct (possibly anonymized) patient folders
+    /// </summary>
+    public class ObjectiveFileMapping
+    {
+        [JsonProperty("patientId")]
+        public string PatientId { get; set; }  // Original patient ID (before anonymization)
+
+        [JsonProperty("courseId")]
+        public string CourseId { get; set; }
+
+        [JsonProperty("planId")]
+        public string PlanId { get; set; }
+
+        [JsonProperty("fileName")]
+        public string FileName { get; set; }  // e.g., "Patient1_Plan1_objectives.json"
     }
 }
