@@ -9,6 +9,7 @@ using System.Text;
 using FellowOakDicom;
 using FellowOakDicom.IO;
 using FellowOakDicom.IO.Writer;
+using System.Linq;
 
 namespace DicomTools.Retrieve
 {
@@ -26,6 +27,8 @@ namespace DicomTools.Retrieve
             m_collectedPatientSeries = new CollectedPatientSeries();
             m_machineMapping = new Dictionary<string, string>();
             m_defaultMachinesByModel = new Dictionary<string, string>();
+
+            m_anonymizationMapEntries = new List<AnonymizationMapEntry>();
         }
 
         public async Task<DicomCStoreResponse> OnCStoreRequestAsync(DicomCStoreRequest request)
@@ -50,8 +53,33 @@ namespace DicomTools.Retrieve
             var fileName = instance.GenerateFileName();
             fileName = Path.Combine(m_tempFolder, fileName);
 
+            // Capture original identifiers prior to anonymization
+            var originalPatientId = dataset.GetSingleValueOrDefault(DicomTag.PatientID, string.Empty);
+            var originalPatientName = dataset.GetSingleValueOrDefault(DicomTag.PatientName, string.Empty);
+
             if (m_globalRetrieveOptions.Anonymize)
+            {
                 m_dicomAnonymizer.AnonymizeInPlace(dataset, m_globalRetrieveOptions.NewPatientId, m_globalRetrieveOptions.NewPatientName);
+
+                // After anonymization, record mapping for audit
+                var anonymizedPatientId = dataset.GetSingleValueOrDefault(DicomTag.PatientID, string.Empty);
+                var anonymizedPatientName = dataset.GetSingleValueOrDefault(DicomTag.PatientName, string.Empty);
+
+                lock (m_anonymizationMapEntries)
+                {
+                    if (!m_anonymizationMapEntries.Any(e => e.OriginalPatientId == originalPatientId && e.AnonymizedPatientId == anonymizedPatientId))
+                    {
+                        m_anonymizationMapEntries.Add(new AnonymizationMapEntry
+                        {
+                            OriginalPatientId = originalPatientId,
+                            OriginalPatientName = originalPatientName,
+                            AnonymizedPatientId = anonymizedPatientId,
+                            AnonymizedPatientName = anonymizedPatientName,
+                            TimestampUtc = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
 
             using var unvalidatedScope = new UnvalidatedScope(dataset);  // To prevent validation errors like leading zero in UUID.
             var saveDicomFile = new DicomFile(dataset);
@@ -159,6 +187,35 @@ namespace DicomTools.Retrieve
             }
 
             EnsureFolderIsDeleted(m_tempFolder);
+
+            // Write anonymization mapping CSV if anonymization was used
+            if (m_globalRetrieveOptions.Anonymize && m_anonymizationMapEntries.Count > 0)
+            {
+                try
+                {
+                    var csvPath = Path.Combine(m_globalRetrieveOptions.Path, "anonymization_map.csv");
+                    var sb = new StringBuilder();
+                    sb.AppendLine("OriginalPatientId,OriginalPatientName,AnonymizedPatientId,AnonymizedPatientName,TimestampUtc");
+                    foreach (var entry in m_anonymizationMapEntries)
+                    {
+                        string Quote(string s) => string.IsNullOrEmpty(s) ? string.Empty : $"\"{s.Replace("\"", "\"\"")}\"";
+                        sb.AppendLine(string.Join(",", new[]
+                        {
+                            Quote(entry.OriginalPatientId),
+                            Quote(entry.OriginalPatientName),
+                            Quote(entry.AnonymizedPatientId),
+                            Quote(entry.AnonymizedPatientName),
+                            entry.TimestampUtc.ToString("o")
+                        }));
+                    }
+                    File.WriteAllText(csvPath, sb.ToString());
+                    m_console.Out.WriteLine($"Anonymization mapping saved: {csvPath}");
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError($"Failed to write anonymization mapping CSV: {ex.Message}");
+                }
+            }
         }
 
         private void MoveFile(TreeItem treeItem, string targetPath)
@@ -244,5 +301,16 @@ namespace DicomTools.Retrieve
         private readonly Dictionary<string, string> m_machineMapping;
 
         private readonly Dictionary<string, string> m_defaultMachinesByModel;
+
+        private readonly List<AnonymizationMapEntry> m_anonymizationMapEntries;
+
+        private sealed class AnonymizationMapEntry
+        {
+            public string OriginalPatientId { get; set; } = string.Empty;
+            public string OriginalPatientName { get; set; } = string.Empty;
+            public string AnonymizedPatientId { get; set; } = string.Empty;
+            public string AnonymizedPatientName { get; set; } = string.Empty;
+            public DateTime TimestampUtc { get; set; }
+        }
     }
 }
