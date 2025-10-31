@@ -440,6 +440,11 @@
                 
                 <!-- CombinedApp Actions -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <CheckBox Content="Include Optimization Objectives" 
+                              IsChecked="{Binding IncludeObjectives}"
+                              VerticalAlignment="Center" 
+                              Margin="0,0,10,0"
+                              ToolTip="Export optimization objectives as JSON files (for IMRT/VMAT plans)"/>
                     <Button Content="Export to JSON" Command="{Binding ExportToJsonCommand}" 
                             Style="{StaticResource ActionButtonStyle}"
                             ToolTip="Export selected patients and plans to JSON file for DICOMTools"/>
