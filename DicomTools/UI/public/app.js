@@ -57,6 +57,14 @@
           }
         }
       });
+
+      // If handoff/imported JSON indicates objectives, auto-check the toggle for visibility
+      try {
+        if (window.HANDOFF_FULL && window.HANDOFF_FULL.hasObjectives) {
+          const t = document.getElementById('includeObjectives');
+          if (t) t.checked = true;
+        }
+      } catch (e) {}
     } catch (e) {
       console.warn('Failed to load form data:', e);
     }
@@ -199,6 +207,170 @@
     return args.join(' ');
   }
 
+  // Generate optimization objectives copy commands for batch file
+  // Handles edge cases: anonymization, multi-patient, missing files
+  function generateObjectivesExportBlock(parameters, isMultiPatient) {
+    // UI toggle (visual control). If present and not checked, skip objectives copy.
+    try {
+      const toggle = document.getElementById('includeObjectives');
+      if (toggle && toggle.checked === false) {
+        return '';
+      }
+    } catch (e) {}
+    // Check if objectives data exists in imported JSON
+    // Also honor parameter-level toggle if provided by import pipeline
+    if (parameters.includeObjectives === false) {
+      return '';
+    }
+
+    if (!parameters.hasObjectives || !parameters.objectiveFiles || parameters.objectiveFiles.length === 0) {
+      return '';
+    }
+    
+    // Validate staging path
+    if (!parameters.objectivesStagingPath) {
+      return `\r\nREM Objectives export skipped - no staging path in JSON\r\n`;
+    }
+    
+    let stagingPath = parameters.objectivesStagingPath;
+    
+    let block = `\r\nREM ============================================\r\n`;
+    block += `REM Copy Optimization Objectives\r\n`;
+    block += `REM ============================================\r\n`;
+    block += `echo.\r\n`;
+    block += `echo [INFO] Copying optimization objectives from staging folder...\r\n\r\n`;
+    
+    // Try multiple locations for objectives folder (for robustness)
+    block += `REM Try to locate objectives staging folder\r\n`;
+    block += `set "_OBJ_STAGING="\r\n`;
+    
+    // Try 1: Absolute path (if provided)
+    if (stagingPath.match(/^[a-zA-Z]:/) || stagingPath.startsWith('\\\\')) {
+      block += `if exist "${stagingPath}" set "_OBJ_STAGING=${stagingPath}"\r\n`;
+    }
+    
+    const isAbsolute = /^[a-zA-Z]:/.test(stagingPath) || stagingPath.startsWith('\\\\');
+    if (!isAbsolute) {
+      // Try 2: Relative to batch file location
+      block += `if not defined _OBJ_STAGING if exist "%~dp0${stagingPath}" set "_OBJ_STAGING=%~dp0${stagingPath}"\r\n`;
+      
+      // Try 3: Relative to current directory
+      block += `if not defined _OBJ_STAGING if exist "%CD%\\${stagingPath}" set "_OBJ_STAGING=%CD%\\${stagingPath}"\r\n`;
+      
+      // Try 4: Relative to export path parent
+      block += `if not defined _OBJ_STAGING if exist "${parameters.path}\\..\\${stagingPath}" set "_OBJ_STAGING=${parameters.path}\\..\\${stagingPath}"\r\n`;
+      
+      // Extra fallback: Common Downloads location (typical for exported JSON)
+      block += `if not defined _OBJ_STAGING if exist "%USERPROFILE%\\Downloads\\${stagingPath}" set "_OBJ_STAGING=%USERPROFILE%\\Downloads\\${stagingPath}"\r\n`;
+    }
+    
+    block += `\r\n`;
+    block += `if not defined _OBJ_STAGING (\r\n`;
+    block += `    echo [WARNING] Objectives staging folder not found >> "%_LOG%"\r\n`;
+    block += `    echo [WARNING] Searched for: ${stagingPath} >> "%_LOG%"\r\n`;
+    block += `    echo [WARNING] Ensure the Objectives folder is:\r\n`;
+    block += `    echo [WARNING]   - In the same directory as this batch file, OR\r\n`;
+    block += `    echo [WARNING]   - In the same directory as the JSON file exported from Patient List Builder\r\n`;
+    block += `    echo [WARNING] Skipping objectives copy >> "%_LOG%"\r\n`;
+    block += `    goto :skip_objectives\r\n`;
+    block += `)\r\n`;
+    block += `echo [INFO] Staging folder found: %_OBJ_STAGING%\r\n\r\n`;
+    
+    if (isMultiPatient) {
+      const patientIdsArray = parameters.patientId.split(';').map(p => p.trim()).filter(p => p);
+      
+      patientIdsArray.forEach((originalPid, index) => {
+        // Determine target folder name (respecting anonymization)
+        let targetFolderName;
+        if (parameters.anonymize && parameters.newPatientId) {
+          const paddedIndex = String(index + 1).padStart(2, '0');
+          const anonId = `${parameters.newPatientId}-${paddedIndex}`;
+          targetFolderName = anonId.replace(/[<>:\"\\/\\|?*]/g, '_');
+        } else {
+          targetFolderName = originalPid.replace(/[<>:\"\\/\\|?*]/g, '_');
+        }
+        
+        const targetPath = `${parameters.path}\\${targetFolderName}`;
+        
+        // Find objective files for THIS patient using ORIGINAL patient ID
+        const patientObjectives = parameters.objectiveFiles.filter(
+          obj => (obj.patientId === originalPid || obj.PatientId === originalPid)
+        );
+        
+        if (patientObjectives.length > 0) {
+          block += `REM Patient: ${originalPid}${parameters.anonymize ? ` -> ${targetFolderName}` : ''}\r\n`;
+          block += `if not exist "${targetPath}" mkdir "${targetPath}"\r\n`;
+          
+        patientObjectives.forEach(objFile => {
+          const fileName = objFile.fileName || objFile.FileName;
+          const planId = objFile.planId || objFile.PlanId;
+          
+          block += `if exist "%_OBJ_STAGING%\\${fileName}" (\r\n`;
+          block += `    echo [INFO] Copying objectives for ${originalPid} - ${planId}\r\n`;
+          block += `    copy "%_OBJ_STAGING%\\${fileName}" "${targetPath}\\${fileName}" >nul 2>>"%_LOG%"\r\n`;
+          block += `    if errorlevel 1 (\r\n`;
+          block += `        echo [WARNING] Failed to copy ${fileName} >> "%_LOG%"\r\n`;
+          block += `    ) else (\r\n`;
+          block += `        echo [INFO] Successfully copied ${fileName}\r\n`;
+          block += `    )\r\n`;
+          block += `) else (\r\n`;
+          block += `    echo [WARNING] Objectives file not found: ${fileName} >> "%_LOG%"\r\n`;
+          block += `)\r\n`;
+        });
+          block += `\r\n`;
+        }
+      });
+    } else {
+      // Single patient mode
+      const originalPid = (parameters.patientId || '').trim();
+      
+      // Determine target folder (matching the logic used for DicomTools --path parameter)
+      let targetFolderName;
+      if (parameters.anonymize && parameters.newPatientId) {
+        targetFolderName = parameters.newPatientId.replace(/[<>:\"\\/\\|?*]/g, '_').trim();
+      } else {
+        targetFolderName = originalPid.replace(/[<>:\"\\\/\|?*]/g, '_').trim();
+      }
+      
+      const targetPath = `${parameters.path}\\${targetFolderName}`;
+      
+      // Find objectives for this patient using ORIGINAL patient ID
+      const patientObjectives = parameters.objectiveFiles.filter(
+        obj => (obj.patientId === originalPid || obj.PatientId === originalPid)
+      );
+      
+      if (patientObjectives.length > 0) {
+        block += `REM Patient: ${originalPid}${parameters.anonymize ? ` -> ${targetFolderName}` : ''}\r\n`;
+        block += `if not exist "${targetPath}" mkdir "${targetPath}"\r\n`;
+        
+        patientObjectives.forEach(objFile => {
+          const fileName = objFile.fileName || objFile.FileName;
+          const planId = objFile.planId || objFile.PlanId;
+          
+          block += `if exist "%_OBJ_STAGING%\\${fileName}" (\r\n`;
+          block += `    echo [INFO] Copying objectives for ${planId}\r\n`;
+          block += `    copy "%_OBJ_STAGING%\\${fileName}" "${targetPath}\\${fileName}" >nul 2>>"%_LOG%"\r\n`;
+          block += `    if errorlevel 1 (\r\n`;
+          block += `        echo [WARNING] Failed to copy ${fileName} >> "%_LOG%"\r\n`;
+          block += `    ) else (\r\n`;
+          block += `        echo [INFO] Successfully copied ${fileName}\r\n`;
+          block += `    )\r\n`;
+          block += `) else (\r\n`;
+          block += `    echo [WARNING] Objectives file not found: ${fileName} >> "%_LOG%"\r\n`;
+          block += `)\r\n`;
+        });
+      } else {
+        block += `echo [INFO] No objectives found for patient ${originalPid}\r\n`;
+      }
+    }
+    
+    block += `\r\n:skip_objectives\r\n`;
+    block += `echo [INFO] Objectives processing completed\r\n`;
+    block += `echo.\r\n\r\n`;
+    
+    return block;
+  }
+
   // Create and save batch file
   async function createBatchFile(operation, parameters) {
     const timestamp = generateTimestamp();
@@ -306,7 +478,7 @@
             }
             
             retrieveExecutionBlock += `echo [INFO] Plan ${planIndex + 1}/${patientPlans.length}: ${planInfo.planId}\r\n`;
-            retrieveExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${pid}" --path "${subPath}" --showTree ${patientArgs.join(' ')}\r\n\r\n`;
+            retrieveExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${pid}" --path "${subPath}" --showTree ${patientArgs.join(' ')} 2>>"%_LOG%"\r\n\r\n`;
           });
         } else {
           // No specific plans - use global plan filter (original behavior)
@@ -333,7 +505,7 @@
           retrieveExecutionBlock += `    rmdir /s /q "${subPath}" 2>nul\r\n`;
           retrieveExecutionBlock += `    timeout /t 1 /nobreak >nul\r\n`;
           retrieveExecutionBlock += `)\r\n`;
-          retrieveExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${pid}" --path "${subPath}" --showTree ${patientArgs.join(' ')}\r\n\r\n`;
+          retrieveExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${pid}" --path "${subPath}" --showTree ${patientArgs.join(' ')} 2>>"%_LOG%"\r\n\r\n`;
         }
       });
     }
@@ -413,7 +585,7 @@
             }
             
             retrieveSingleExecutionBlock += `echo [INFO] Plan ${index + 1}/${patientPlans.length}: ${planInfo.planId}\r\n`;
-            retrieveSingleExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${patientId}" --path "${patientSubPath}" --showTree ${hostArgs.join(' ')}\r\n\r\n`;
+        retrieveSingleExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${patientId}" --path "${patientSubPath}" --showTree ${hostArgs.join(' ')} 2>>"%_LOG%"\r\n\r\n`;
           });
         });
       } else {
@@ -427,6 +599,8 @@
         // Add plan filtering parameters
         if (parameters.planId) hostArgs.push(`--planId "${parameters.planId}"`);
         if (parameters.onlyApprovedPlans) hostArgs.push(`--onlyApprovedPlans`);
+        // Add --force to skip confirmation prompts and enable data reuse
+        hostArgs.push(`--force`);
         
         // Add anonymization parameters if present
         if (parameters.anonymize) {
@@ -448,11 +622,34 @@
         retrieveSingleExecutionBlock += `    rmdir /s /q "${subPath}" 2>nul\r\n`;
         retrieveSingleExecutionBlock += `    timeout /t 1 /nobreak >nul\r\n`;
         retrieveSingleExecutionBlock += `)\r\n`;
-        retrieveSingleExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${pid}" --path "${subPath}" --showTree ${hostArgs.join(' ')}\r\n`;
+        retrieveSingleExecutionBlock += `"%_DT_EXE%" retrieve --patientId "${pid}" --path "${subPath}" --showTree ${hostArgs.join(' ')} 2>>"%_LOG%"\r\n`;
       }
     }
 
-    // Create batch file content with enhanced progress tracking
+  // Helper: generate anonymization CSV consolidation block
+  function generateAnonymizationMergeBlock(parameters) {
+    if (!parameters.anonymize) return '';
+    let block = `\r\nREM ============================================\r\n`;
+    block += `REM Consolidate Anonymization Mapping CSVs\r\n`;
+    block += `REM ============================================\r\n`;
+    block += `set "_ANON_OUT=${parameters.path}\\anonymization_map.csv"\r\n`;
+    block += `if not exist "%_ANON_OUT%" echo OriginalPatientId,OriginalPatientName,AnonymizedPatientId,AnonymizedPatientName,TimestampUtc>"%_ANON_OUT%"\r\n`;
+    block += `for /r "${parameters.path}" %%F in (anonymization_map.csv) do (\r\n`;
+    block += `    if /I not "%%~fF"=="%_ANON_OUT%" (\r\n`;
+    block += `        for /f "skip=1 usebackq delims=" %%L in ("%%F") do (\r\n`;
+    block += `            >> "%_ANON_OUT%" echo %%L\r\n`;
+    block += `        )\r\n`;
+    block += `    )\r\n`;
+    block += `)\r\n`;
+    block += `if exist "%_ANON_OUT%" (\r\n`;
+    block += `    echo [INFO] Consolidated anonymization map: %_ANON_OUT%\r\n`;
+    block += `) else (\r\n`;
+    block += `    echo [INFO] No anonymization maps found to consolidate\r\n`;
+    block += `)\r\n\r\n`;
+    return block;
+  }
+
+  // Create batch file content with enhanced progress tracking
     const batchContent = `@echo off
 title DICOM Tools - ${operation.toUpperCase()} Operation ${isMultiPatient ? `(${patientCount} Patients)` : ''}
 color 0A
@@ -483,14 +680,23 @@ echo [INFO] Using listening port from Settings: ${configuredListeningPort}
 
 REM Show current directory for debugging
 echo [INFO] Current directory: %CD%
+REM Ensure export root exists before initializing the batch log
+if not exist "${parameters.path}" mkdir "${parameters.path}" 2>nul
+REM Initialize batch error log at export root (or source path for import)
+set "_EXPORT_ROOT=${parameters.path}"
+set "_LOG=%_EXPORT_ROOT%\\batch_errors.txt"
+del /f /q "%_LOG%" >nul 2>&1
+echo [INFO] Batch started %date% %time% > "%_LOG%"
 echo [INFO] Executing DICOM Tools...
 echo [CMD]  "%_DT_EXE%" ${commandLine}
 echo.
 
 ${operation === 'retrieve' ? (isMultiPatient ? `${retrieveExecutionBlock}
-` : `${retrieveSingleExecutionBlock}
-`) : `REM Execute DicomTools.exe with resolved path
-"%_DT_EXE%" ${commandLine}
+${generateObjectivesExportBlock(parameters, true)}
+${generateAnonymizationMergeBlock(parameters)}` : `${retrieveSingleExecutionBlock}
+${generateObjectivesExportBlock(parameters, false)}
+${generateAnonymizationMergeBlock(parameters)}`) : `REM Execute DicomTools.exe with resolved path
+"%_DT_EXE%" ${commandLine} 2>>"%_LOG%"
 `}
 
 REM Capture exit code
@@ -502,6 +708,7 @@ echo ===============================================
 if %EXIT_CODE% EQU 0 (
     echo [SUCCESS] Operation completed successfully!
     echo Exit Code: %EXIT_CODE%
+    >> "%_LOG%" echo [INFO] Operation completed successfully! Exit Code: %EXIT_CODE%
     ${isMultiPatient && operation === 'retrieve' ? `
     echo.
     echo [MULTI-PATIENT] Checking export results for ${patientCount} patients...
@@ -513,10 +720,12 @@ if %EXIT_CODE% EQU 0 (
         )
     ) else (
         echo [WARNING] Export directory not found - check for errors above
+        >> "%_LOG%" echo [WARNING] Export directory not found - check for errors above
     )` : ''}
 ) else (
     echo [ERROR] Operation failed!
     echo Exit Code: %EXIT_CODE%
+    >> "%_LOG%" echo [ERROR] Operation failed! Exit Code: %EXIT_CODE%
     ${isMultiPatient ? `echo [MULTI-PATIENT] When processing multiple patients, some may succeed while others fail` : ''}
 )
 echo ===============================================
@@ -718,6 +927,26 @@ pause >nul`;
       args.anonymize = true;
       args.newPatientId = newPatientId;
       args.newPatientName = newPatientName;
+    }
+    
+    // Load optimization objectives data from imported JSON (if available)
+    try {
+      const importedData = sessionStorage.getItem('importedPatientData');
+      if (importedData) {
+        const jsonData = JSON.parse(importedData);
+        
+        // Check if objectives data exists in imported JSON
+        if (jsonData.hasObjectives || jsonData.HasObjectives) {
+          args.hasObjectives = true;
+          args.objectivesStagingPath = jsonData.objectivesStagingPath || jsonData.ObjectivesStagingPath || 'Objectives';
+          args.objectiveFiles = jsonData.objectiveFiles || jsonData.ObjectiveFiles || [];
+          
+          console.log(`Objectives data loaded: ${args.objectiveFiles.length} files, staging path: ${args.objectivesStagingPath}`);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load objectives data from imported JSON:', e);
+      // Continue without objectives - not a critical error
     }
     
     createBatchFile('retrieve', args);

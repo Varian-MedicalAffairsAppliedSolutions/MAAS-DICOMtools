@@ -9,6 +9,7 @@ using System.Windows;
 using ESAPIPatientBrowser.Models;
 using ESAPIPatientBrowser.Views;
 using Microsoft.Win32;
+using ESAPIApp = VMS.TPS.Common.Model.API.Application;
 
 namespace ESAPIPatientBrowser.Services
 {
@@ -28,7 +29,7 @@ namespace ESAPIPatientBrowser.Services
         /// <summary>
         /// Launches CombinedApp and sends the patient/plan collection
         /// </summary>
-        public async Task<bool> LaunchWithPatientListAsync(PatientPlanCollection collection)
+        public async Task<bool> LaunchWithPatientListAsync(PatientPlanCollection collection, bool includeObjectives = false, ESAPIApp esapiApp = null)
         {
             try
             {
@@ -111,7 +112,7 @@ namespace ESAPIPatientBrowser.Services
             }
         }
 
-        public bool OpenIndexHtml(PatientPlanCollection handoffCollection = null)
+        public bool OpenIndexHtml(PatientPlanCollection handoffCollection = null, bool includeObjectives = false, ESAPIApp esapiApp = null)
         {
             try
             {
@@ -179,7 +180,7 @@ namespace ESAPIPatientBrowser.Services
                 // Write handoff files if collection was provided
                 if (handoffCollection != null && foundIndexPath != null)
                 {
-                    WriteHandoffFiles(foundIndexPath, handoffCollection);
+                    WriteHandoffFiles(foundIndexPath, handoffCollection, includeObjectives, esapiApp);
                 }
 
                 // Open the index.html file in default browser
@@ -213,12 +214,36 @@ namespace ESAPIPatientBrowser.Services
             }
         }
 
-        private void WriteHandoffFiles(string indexHtmlPath, PatientPlanCollection handoffCollection)
+        private void WriteHandoffFiles(string indexHtmlPath, PatientPlanCollection handoffCollection, bool includeObjectives, ESAPIApp esapiApp)
         {
             try
             {
                 var indexDir = Path.GetDirectoryName(indexHtmlPath);
                 if (string.IsNullOrEmpty(indexDir)) return;
+
+                // Optionally export optimization objectives into an Objectives folder next to the UI
+                if (includeObjectives && esapiApp != null)
+                {
+                    try
+                    {
+                        var objectivesService = new OptimizationObjectivesExportService();
+                        var result = objectivesService.ExportObjectivesToStagingFolder(esapiApp, handoffCollection, indexDir);
+
+                        var stagingPath = result.StagingPath;
+                        var fileMappings = result.FileMappings;
+                        if (!string.IsNullOrEmpty(stagingPath) && fileMappings != null && fileMappings.Count > 0)
+                        {
+                            handoffCollection.ObjectivesStagingPath = Path.GetFullPath(stagingPath);
+                            handoffCollection.ObjectiveFiles = fileMappings;
+                            handoffCollection.HasObjectives = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine("Objectives export during handoff failed: " + ex.Message);
+                        // Non-fatal, continue without objectives
+                    }
+                }
 
                 var jsonPath = Path.Combine(indexDir, "handoff_patients.json");
                 var handoffJsPath = Path.Combine(indexDir, "handoff_patients.js");

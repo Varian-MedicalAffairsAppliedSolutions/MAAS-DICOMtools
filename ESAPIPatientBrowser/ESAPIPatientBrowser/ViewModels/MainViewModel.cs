@@ -40,6 +40,7 @@ namespace ESAPIPatientBrowser.ViewModels
         private bool _esapiBusy = false; // Guard to prevent concurrent ESAPI access
         private double _searchProgress = 0;
         private bool _showOnlyPatientsWithPlans = true;
+        private bool _includeObjectives = false; // Export optimization objectives
         private List<PatientInfo> _allPatients = new List<PatientInfo>(); // Unfiltered list for filtering
         private CancellationTokenSource _searchCancellationTokenSource;
 
@@ -303,6 +304,16 @@ namespace ESAPIPatientBrowser.ViewModels
                 _showOnlyPatientsWithPlans = value; 
                 OnPropertyChanged();
                 ApplyPatientFilter();
+            }
+        }
+
+        public bool IncludeObjectives
+        {
+            get => _includeObjectives;
+            set 
+            { 
+                _includeObjectives = value; 
+                OnPropertyChanged();
             }
         }
 
@@ -1074,7 +1085,7 @@ namespace ESAPIPatientBrowser.ViewModels
             try
             {
                 UpdateCurrentCollection();
-                _jsonExportService.ExportToFile(_currentCollection);
+                _jsonExportService.ExportToFile(_esapiApp, _currentCollection, IncludeObjectives);
             }
             catch (Exception ex)
             {
@@ -1108,7 +1119,7 @@ namespace ESAPIPatientBrowser.ViewModels
             try
             {
                 UpdateCurrentCollection();
-                await _combinedAppService.LaunchWithPatientListAsync(_currentCollection);
+                await _combinedAppService.LaunchWithPatientListAsync(_currentCollection, IncludeObjectives, _esapiApp);
             }
             catch (Exception ex)
             {
@@ -1128,7 +1139,7 @@ namespace ESAPIPatientBrowser.ViewModels
                 // Create handoff collection from current selection (or all if none selected)
                 UpdateCurrentCollection();
                 // Open the UI and drop handoff files next to index.html for auto-read
-                _combinedAppService.OpenIndexHtml(_currentCollection);
+                _combinedAppService.OpenIndexHtml(_currentCollection, IncludeObjectives, _esapiApp);
             }
             catch (Exception ex)
             {
@@ -1165,7 +1176,7 @@ namespace ESAPIPatientBrowser.ViewModels
                 
                 // Build handoff from current selection (or all if none selected)
                 UpdateCurrentCollection();
-                _combinedAppService.OpenIndexHtml(_currentCollection);
+                _combinedAppService.OpenIndexHtml(_currentCollection, IncludeObjectives, _esapiApp);
             }
             catch (Exception ex)
             {
