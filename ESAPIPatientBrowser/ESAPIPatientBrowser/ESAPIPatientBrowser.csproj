@@ -71,15 +71,13 @@
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
-    <Reference Include="VMS.TPS.Common.Model.API">
-      <HintPath Condition="Exists('C:\Program Files (x86)\Varian\RTM\16.1\esapi\API')">C:\Program Files (x86)\Varian\RTM\16.1\esapi\API\VMS.TPS.Common.Model.API.dll</HintPath>
-      <HintPath Condition="Exists('C:\Program Files (x86)\Varian\RTM\15.6\esapi\API')">C:\Program Files (x86)\Varian\RTM\15.6\esapi\API\VMS.TPS.Common.Model.API.dll</HintPath>
-      <HintPath>..\..\..\..\ESAPI dll\VMS.TPS.Common.Model.API.dll</HintPath>
+    <Reference Include="VMS.TPS.Common.Model.API, Version=1.0.700.247, Culture=neutral, PublicKeyToken=305b81e210ec4b89, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Varian\RTM\18.1\esapi\API\VMS.TPS.Common.Model.API.dll</HintPath>
     </Reference>
-    <Reference Include="VMS.TPS.Common.Model.Types">
-      <HintPath Condition="Exists('C:\Program Files (x86)\Varian\RTM\16.1\esapi\API')">C:\Program Files (x86)\Varian\RTM\16.1\esapi\API\VMS.TPS.Common.Model.Types.dll</HintPath>
-      <HintPath Condition="Exists('C:\Program Files (x86)\Varian\RTM\15.6\esapi\API')">C:\Program Files (x86)\Varian\RTM\15.6\esapi\API\VMS.TPS.Common.Model.Types.dll</HintPath>
-      <HintPath>..\..\..\..\ESAPI dll\VMS.TPS.Common.Model.Types.dll</HintPath>
+    <Reference Include="VMS.TPS.Common.Model.Types, Version=1.0.700.247, Culture=neutral, PublicKeyToken=305b81e210ec4b89, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Varian\RTM\18.1\esapi\API\VMS.TPS.Common.Model.Types.dll</HintPath>
     </Reference>
     <Reference Include="WindowsBase" />
     <Reference Include="PresentationCore" />
@@ -117,6 +115,7 @@
     <Compile Include="Models\AdvancedSearchCriteria.cs" />
     <Compile Include="Services\PatientSearchService.cs" />
     <Compile Include="Services\JsonExportService.cs" />
+    <Compile Include="Services\OptimizationObjectivesExportService.cs" />
     <Compile Include="Services\CombinedAppService.cs" />
     <Compile Include="Services\AdvancedSearchService.cs" />
     <Compile Include="Services\SettingsService.cs" />
@@ -169,6 +168,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- <Resource Include="App.ico" /> -->
+    <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
