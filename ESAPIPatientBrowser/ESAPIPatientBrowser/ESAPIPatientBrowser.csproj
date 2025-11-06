@@ -71,11 +71,13 @@
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
-    <Reference Include="VMS.TPS.Common.Model.API">
-      <HintPath>..\..\..\..\..\Morphinimus\AOS-MachineSwitch-Morphinimus-18master\VMS.TPS.Common.Model.API.dll</HintPath>
+    <Reference Include="VMS.TPS.Common.Model.API, Version=1.0.700.247, Culture=neutral, PublicKeyToken=305b81e210ec4b89, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Varian\RTM\18.1\esapi\API\VMS.TPS.Common.Model.API.dll</HintPath>
     </Reference>
-    <Reference Include="VMS.TPS.Common.Model.Types">
-      <HintPath>..\..\..\..\..\Morphinimus\AOS-MachineSwitch-Morphinimus-18master\VMS.TPS.Common.Model.Types.dll</HintPath>
+    <Reference Include="VMS.TPS.Common.Model.Types, Version=1.0.700.247, Culture=neutral, PublicKeyToken=305b81e210ec4b89, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Varian\RTM\18.1\esapi\API\VMS.TPS.Common.Model.Types.dll</HintPath>
     </Reference>
     <Reference Include="WindowsBase" />
     <Reference Include="PresentationCore" />
@@ -166,6 +168,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- <Resource Include="App.ico" /> -->
+    <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
