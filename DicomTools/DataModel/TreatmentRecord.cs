@@ -32,9 +32,10 @@ namespace DicomTools.DataModel
 
             var treatmentSessionBeamSequence = dataset.GetSequence(DicomTag.TreatmentSessionBeamSequence);
             var firstTreatmentSessionBeam = treatmentSessionBeamSequence.Items.First();
-            var referencedBeamNumber = firstTreatmentSessionBeam.GetSingleValue<int>(DicomTag.ReferencedBeamNumber);
+
             var beamName = firstTreatmentSessionBeam.GetSingleValue<string>(DicomTag.BeamName);
             var currentFractionNumber = firstTreatmentSessionBeam.GetSingleValue<int>(DicomTag.CurrentFractionNumber);
+            firstTreatmentSessionBeam.TryGetSingleValue<int>(DicomTag.ReferencedBeamNumber, out var referencedBeamNumber);
 
             return new TreatmentRecord(dataset, new InstanceReference(new Modality(ModalityType.Plan), referencedPlanUid),
                 referencedBeamNumber, beamName, currentFractionNumber);
