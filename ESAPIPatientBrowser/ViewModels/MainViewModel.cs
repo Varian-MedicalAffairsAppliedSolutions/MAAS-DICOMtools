@@ -213,8 +213,8 @@ namespace ESAPIPatientBrowser.ViewModels
                 // Only trigger ESAPI calls after initialization is complete
                 if (_isInitialized && !_esapiBusy)
                 {
-                    _ = UpdateSearchSuggestionsAsync();
-                    UpdateFilteredPatientIds();
+                    // _ = UpdateSearchSuggestionsAsync();
+                    // UpdateFilteredPatientIds();
                 }
             }
         }
