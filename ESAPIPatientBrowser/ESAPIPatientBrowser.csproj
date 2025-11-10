@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <Title>PatientBrowser</Title>
+        <Description>Patient and Plan Browser for CombinedApp DICOM Tools</Description>
+        <Product>ESAPIPatientBrowser</Product>
+        <Copyright>Copyright © $([System.DateTime]::UtcNow.ToString(yyyy))</Copyright>
+        <Version>1.0.0.0</Version>
+        <FileVersion>1.0.0.0</FileVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net48-windows</TargetFramework>
+        <PlatformTarget>x64</PlatformTarget>
+        <ImplicitUsings>false</ImplicitUsings>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+        <LangVersion>12</LangVersion>
+        <WarningLevel>4</WarningLevel>
+        <Prefer32Bit>true</Prefer32Bit>
+        <ErrorReport>prompt</ErrorReport>
+        <UseWPF>true</UseWPF>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+        <DebugSymbols>true</DebugSymbols>
+        <OutputPath>bin\x64\Debug\</OutputPath>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+        <SignAssembly>false</SignAssembly>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <Optimize>true</Optimize>
+        <OutputPath>bin\x64\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+        <DebugType>pdbonly</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ContentWithTargetPath Include="Launcher\ESAPIPatientBrowserLauncher.cs">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>ESAPIPatientBrowserLauncher.cs</TargetPath>
+        </ContentWithTargetPath>
+    </ItemGroup>
+
+    <Import Condition="Exists('./EsapiReference.props')" Project="./EsapiReference.props"/>
+
+    <ItemGroup Condition="!Exists('./EsapiReference.props')">
+        <Reference Include="VMS.TPS.Common.Model.API">
+            <SpecificVersion>False</SpecificVersion>
+            <HintPath>C:\Program Files (x86)\Varian\RTM\18.1\esapi\API\VMS.TPS.Common.Model.API.dll</HintPath>
+        </Reference>
+        <Reference Include="VMS.TPS.Common.Model.Types">
+            <SpecificVersion>False</SpecificVersion>
+            <HintPath>C:\Program Files (x86)\Varian\RTM\18.1\esapi\API\VMS.TPS.Common.Model.Types.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Reference Include="System.Net.Http"/>
+        <PackageReference Include="ControlzEx" Version="4.4.0"/>
+        <PackageReference Include="MahApps.Metro" Version="2.4.5"/>
+        <PackageReference Include="MahApps.Metro.IconPacks.FontAwesome" Version="4.8.0"/>
+        <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.19"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+    </ItemGroup>
+
+</Project>
