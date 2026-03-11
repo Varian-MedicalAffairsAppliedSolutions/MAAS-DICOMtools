@@ -66,14 +66,38 @@ namespace DicomTools.DataModel
             }
 
             var referencedStructureSet = referencedStructureSetUid != null ? new InstanceReference(new Modality(ModalityType.StructureSet), referencedStructureSetUid) : null;
-            var beamSequence = dataset.GetSequence(DicomTag.BeamSequence);
-            var firstBeam = beamSequence.First();
-            var treatmentMachineManufacturer = firstBeam.GetSingleValueOrDefault(DicomTag.Manufacturer, string.Empty);
-            if (string.IsNullOrEmpty(treatmentMachineManufacturer))
-                treatmentMachineManufacturer = "Varian Medical Systems";
-            var treatmentMachineModel = firstBeam.GetSingleValueOrDefault<string?>(DicomTag.ManufacturerModelName, null);
-            var treatmentMachineName = firstBeam.GetSingleValueOrDefault(DicomTag.TreatmentMachineName, string.Empty);
+
+            string treatmentMachineManufacturer;
+            string? treatmentMachineModel;
+            string? treatmentMachineName;
             string? originalTreatmentMachineName = null;
+            var beams = new List<RtBeam>();
+
+            if (IsBrachyPlan(dataset))
+            {
+                // Brachy
+                var treatmentMachine = dataset.GetSequence(DicomTag.TreatmentMachineSequence).Single();
+                treatmentMachineManufacturer = treatmentMachine.GetSingleValueOrDefault(DicomTag.Manufacturer, string.Empty);
+                treatmentMachineModel = treatmentMachine.GetSingleValueOrDefault<string?>(DicomTag.ManufacturerModelName, null);
+                treatmentMachineName = treatmentMachine.GetSingleValueOrDefault(DicomTag.TreatmentMachineName, string.Empty);
+            }
+            else
+            {
+                // External
+                var beamSequence = dataset.GetSequence(DicomTag.BeamSequence);
+                var firstBeam = beamSequence.First();
+                treatmentMachineManufacturer = firstBeam.GetSingleValueOrDefault(DicomTag.Manufacturer, string.Empty);
+                if (string.IsNullOrEmpty(treatmentMachineManufacturer))
+                    treatmentMachineManufacturer = "Varian Medical Systems";
+                treatmentMachineModel = firstBeam.GetSingleValueOrDefault<string?>(DicomTag.ManufacturerModelName, null);
+                treatmentMachineName = firstBeam.GetSingleValueOrDefault(DicomTag.TreatmentMachineName, string.Empty);
+
+                foreach (var beamDataset in beamSequence)
+                {
+                    beams.Add(RtBeam.Create(beamDataset));
+                }
+            }
+
             if (string.IsNullOrEmpty(treatmentMachineName))
             {
                 if (string.IsNullOrEmpty(treatmentMachineModel))
@@ -89,27 +113,34 @@ namespace DicomTools.DataModel
                 treatmentMachineName = mappedTreatmentMachineName;
             }
 
-            var beams = new List<RtBeam>();
-            foreach (var beamDataset in beamSequence)
-            {
-                beams.Add(RtBeam.Create(beamDataset));
-            }
-
             return new RtPlan(dataset, referencedStructureSet, beams,
                 treatmentMachineManufacturer, treatmentMachineModel, treatmentMachineName, originalTreatmentMachineName);
         }
 
         public bool MapMachineIfNeeded(DicomDataset dataset)
         {
-            var beamSequence = dataset.GetSequence(DicomTag.BeamSequence);
             if (OriginalTreatmentMachineName != null)
             {
-                foreach (var beam in beamSequence)
-                    beam.AddOrUpdate(DicomTag.TreatmentMachineName, TreatmentMachineName);
+                if (IsBrachyPlan(dataset))
+                {
+                    var treatmentMachine = dataset.GetSequence(DicomTag.TreatmentMachineSequence).Single();
+                    treatmentMachine.AddOrUpdate(DicomTag.TreatmentMachineName, TreatmentMachineName);
+                }
+                else
+                {
+                    var beamSequence = dataset.GetSequence(DicomTag.BeamSequence);
+                    foreach (var beam in beamSequence)
+                        beam.AddOrUpdate(DicomTag.TreatmentMachineName, TreatmentMachineName);
+                }
                 return true;
             }
 
             return false;
+        }
+
+        private static bool IsBrachyPlan(DicomDataset dataset)
+        {
+            return dataset.TryGetSequence(DicomTag.ApplicationSetupSequence, out var _);
         }
     }
 }
