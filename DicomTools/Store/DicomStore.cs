@@ -154,7 +154,7 @@ namespace DicomTools.Store
         {
             if (statusLines != null && statusLines.Contains(fileName))
             {
-                m_logger.LogError($"Skipping {fileName} as it is already stored.");
+                m_logger.LogInformation($"Skipping {fileName} as it is already stored.");
                 return DicomStatus.Success;
             }
 
