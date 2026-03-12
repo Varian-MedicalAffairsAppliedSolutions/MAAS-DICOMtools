@@ -118,6 +118,6 @@ jobs:
             This is an official release of the **${{ env.PROJECT_NAME }}** project.
             Generated on **${{ steps.currentDate.outputs.time }}**.
             Includes artifacts for DicomTools, CheckTiltedCT, and ESAPIPatientBrowser.
-          Supported Eclipse version: **v18.0**.
+            Supported Eclipse version: **v18.0**.
             Optional expiration date: **${{ github.event.inputs.expirationDate }}**.
         files: ${{ github.workspace }}\${{ steps.metadata.outputs.RELEASE_FILE_NAME }}.zip
