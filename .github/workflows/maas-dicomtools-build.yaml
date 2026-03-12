@@ -1,50 +1,173 @@
-name: Build MAAS-DicomTools
+name: Build MAAS-DicomTools (ESAPI v18)
 
 on:
   workflow_dispatch:
+    inputs:
+      expirationDate:
+        description: 'Optional expiration date for release notes (MM/DD/YYYY)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  packages: read
 
 jobs:
-    build:
-        runs-on: windows-latest
+  build:
+    runs-on: windows-2022
 
-        env:
-            PROJECT_NAME: MAAS-DicomTools
-            BUILD_NUMBER: ${{ github.run_number }}
+    env:
+      PROJECT_NAME: MAAS-DicomTools
+      BUILD_NUMBER: ${{ github.run_number }}
+      CONFIGURATION: Release
+      ESAPI_VERSION: 18.0.0.1
+      ESAPI_PACKAGE_PATH: ${{ github.workspace }}\packages\ESAPI.18.0.0.1\lib\net48
 
-        steps:
+    steps:
+    - name: Get Current Date
+      id: currentDate
+      uses: Kaven-Universe/github-action-current-date-time@v1
+      with:
+        format: "MM/dd/yyyy"
 
-        - name: Get Current Date
-          id: currentDate
-          uses: Kaven-Universe/github-action-current-date-time@v1
-          with:
-            format: "MM/DD/YYYY"
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-        - name: Checkout
-          uses: actions/checkout@v4
+    - name: Setup .NET 8.x
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
 
-        - name: Setup .NET 8.x
-          uses: actions/setup-dotnet@v4
-          with:
-            dotnet-version: '8.x'
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
 
-        - name: Install dependencies
-          run: dotnet restore
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v2
 
-        - name: Build
-          run: dotnet build --no-restore --configuration Release
-               
-        - name: Zip
-          run: Compress-Archive -Path .\DicomTools\bin\Release\net8.0\* -Destination .\DicomTools\bin\Release\net8.0\maas-dicomtools.zip
+    - name: Validate package credentials
+      shell: pwsh
+      run: |
+        $userFromSecret = "${{ secrets.ESAPI_NUGET_USERNAME }}"
+        $tokenFromSecret = "${{ secrets.ESAPI_NUGET_TOKEN }}"
 
-        - name: Create Release
-          uses: softprops/action-gh-release@v2.0.9
-          with:
-            name: V1.2
-            tag_name: V1.2-${{ env.BUILD_NUMBER }}
-            token: ${{ secrets.GITHUB_TOKEN }}
-            draft: false
-            prerelease: false
-            body: |
-                This is an official release of the **`${{ env.PROJECT_NAME }}`** project. Generated on `${{ steps.currentDate.outputs.time }}`.
-                Supported .NET version: `8.0`.                
-            files: ./DicomTools/bin/Release/net8.0/maas-dicomtools.zip
+        if ([string]::IsNullOrWhiteSpace($tokenFromSecret)) {
+          Write-Host "ESAPI_NUGET_TOKEN secret is not set. Falling back to GITHUB_TOKEN."
+        }
+
+        if ([string]::IsNullOrWhiteSpace($userFromSecret)) {
+          Write-Host "ESAPI_NUGET_USERNAME secret is not set. Falling back to github.actor."
+        }
+
+    - name: Add private ESAPI NuGet source
+      shell: pwsh
+      run: |
+        $nugetUser = "${{ secrets.ESAPI_NUGET_USERNAME }}"
+        if ([string]::IsNullOrWhiteSpace($nugetUser)) {
+          $nugetUser = "${{ github.actor }}"
+        }
+
+        $nugetToken = "${{ secrets.ESAPI_NUGET_TOKEN }}"
+        if ([string]::IsNullOrWhiteSpace($nugetToken)) {
+          $nugetToken = "${{ github.token }}"
+        }
+
+        if ([string]::IsNullOrWhiteSpace($nugetToken)) {
+          throw "No token available for GitHub Packages. Set ESAPI_NUGET_TOKEN repository secret with a PAT that has read:packages."
+        }
+
+        nuget source remove -Name varian-github -NonInteractive 2>$null; if ($LASTEXITCODE -ne 0) { Write-Host "Source varian-github did not exist" }
+        nuget source add `
+          -Name varian-github `
+          -Source "https://nuget.pkg.github.com/Varian-MedicalAffairsAppliedSolutions/index.json" `
+          -UserName "$nugetUser" `
+          -Password "$nugetToken" `
+          -StorePasswordInClearText `
+          -NonInteractive
+
+    - name: Restore DicomTools and CheckTiltedCT
+      run: dotnet restore DicomTools.sln
+
+    - name: Download ESAPI package
+      run: nuget install ESAPI -Version ${{ env.ESAPI_VERSION }} -OutputDirectory .\packages -Source varian-github -NonInteractive
+
+    - name: Verify ESAPI package files
+      shell: pwsh
+      run: |
+        $apiDll = Join-Path "${{ env.ESAPI_PACKAGE_PATH }}" "VMS.TPS.Common.Model.API.dll"
+        $typesDll = Join-Path "${{ env.ESAPI_PACKAGE_PATH }}" "VMS.TPS.Common.Model.Types.dll"
+
+        Write-Host "Checking ESAPI files in: ${{ env.ESAPI_PACKAGE_PATH }}"
+        if (Test-Path "${{ env.ESAPI_PACKAGE_PATH }}") {
+          Get-ChildItem "${{ env.ESAPI_PACKAGE_PATH }}" | Select-Object -First 20 | ForEach-Object { Write-Host $_.Name }
+        }
+
+        if (-not (Test-Path $apiDll)) {
+          throw "Missing file: $apiDll"
+        }
+        if (-not (Test-Path $typesDll)) {
+          throw "Missing file: $typesDll"
+        }
+
+    - name: Rewrite ESAPI reference hint paths
+      shell: pwsh
+      env:
+        GITHUB_WORKSPACE_PACKAGES_PATH: ${{ env.ESAPI_PACKAGE_PATH }}
+      run: |
+        .\.github\scripts\Update-EsapiHintPaths.ps1 `
+          -CsprojFilePath .\ESAPIPatientBrowser `
+          -CsprojFileName ESAPIPatientBrowser.csproj
+
+    - name: Build DicomTools
+      run: dotnet build .\DicomTools\DicomTools.csproj --no-restore --configuration ${{ env.CONFIGURATION }}
+
+    - name: Build CheckTiltedCT
+      run: dotnet build .\CheckTiltedCT\CheckTiltedCT.csproj --no-restore --configuration ${{ env.CONFIGURATION }}
+
+    - name: Build ESAPIPatientBrowser
+      run: msbuild.exe .\ESAPIPatientBrowser\ESAPIPatientBrowser.csproj /nologo /nr:false /p:platform="x64" /p:configuration="${{ env.CONFIGURATION }}"
+
+    - name: Stage release files
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Path .\release\DicomTools -Force | Out-Null
+        New-Item -ItemType Directory -Path .\release\CheckTiltedCT -Force | Out-Null
+        New-Item -ItemType Directory -Path .\release\ESAPIPatientBrowser -Force | Out-Null
+
+        Copy-Item .\DicomTools\bin\${{ env.CONFIGURATION }}\net8.0\* .\release\DicomTools -Recurse -Force
+        Copy-Item .\CheckTiltedCT\bin\${{ env.CONFIGURATION }}\net8.0\* .\release\CheckTiltedCT -Recurse -Force
+        Copy-Item .\ESAPIPatientBrowser\bin\x64\${{ env.CONFIGURATION }}\* .\release\ESAPIPatientBrowser -Recurse -Force
+
+    - name: Create release metadata
+      id: metadata
+      shell: pwsh
+      run: |
+        .\.github\scripts\Set-ReleaseMetadata.ps1 `
+          -ProjectName "${{ env.PROJECT_NAME }}" `
+          -BuildNumber "${{ env.BUILD_NUMBER }}" `
+          -ExpirationDate "${{ github.event.inputs.expirationDate }}"
+
+    - name: Zip
+      shell: pwsh
+      run: |
+        Compress-Archive `
+          -Path .\release\* `
+          -DestinationPath "${{ github.workspace }}\${{ steps.metadata.outputs.RELEASE_FILE_NAME }}.zip" `
+          -Force
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2.0.9
+      with:
+        name: ${{ steps.metadata.outputs.RELEASE_NAME }}
+        tag_name: ${{ steps.metadata.outputs.RELEASE_TAG }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        draft: false
+        prerelease: false
+        body: |
+            This is an official release of the **${{ env.PROJECT_NAME }}** project.
+            Generated on **${{ steps.currentDate.outputs.time }}**.
+            Includes artifacts for DicomTools, CheckTiltedCT, and ESAPIPatientBrowser.
+            Supported Eclipse version: **v18.0**.
+            Optional expiration date: **${{ github.event.inputs.expirationDate }}**.
+        files: ${{ github.workspace }}\${{ steps.metadata.outputs.RELEASE_FILE_NAME }}.zip
