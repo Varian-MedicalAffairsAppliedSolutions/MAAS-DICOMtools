@@ -21,7 +21,7 @@ jobs:
       BUILD_NUMBER: ${{ github.run_number }}
       CONFIGURATION: Release
       ESAPI_VERSION: 18.0.0.1
-      ESAPI_PACKAGE_PATH: .\packages\ESAPI.18.0.0.1\lib\net48
+      ESAPI_PACKAGE_PATH: ${{ github.workspace }}\packages\ESAPI.18.0.0.1\lib\net48
 
     steps:
     - name: Get Current Date
@@ -91,6 +91,24 @@ jobs:
 
     - name: Download ESAPI package
       run: nuget install ESAPI -Version ${{ env.ESAPI_VERSION }} -OutputDirectory .\packages -Source varian-github -NonInteractive
+
+    - name: Verify ESAPI package files
+      shell: pwsh
+      run: |
+        $apiDll = Join-Path "${{ env.ESAPI_PACKAGE_PATH }}" "VMS.TPS.Common.Model.API.dll"
+        $typesDll = Join-Path "${{ env.ESAPI_PACKAGE_PATH }}" "VMS.TPS.Common.Model.Types.dll"
+
+        Write-Host "Checking ESAPI files in: ${{ env.ESAPI_PACKAGE_PATH }}"
+        if (Test-Path "${{ env.ESAPI_PACKAGE_PATH }}") {
+          Get-ChildItem "${{ env.ESAPI_PACKAGE_PATH }}" | Select-Object -First 20 | ForEach-Object { Write-Host $_.Name }
+        }
+
+        if (-not (Test-Path $apiDll)) {
+          throw "Missing file: $apiDll"
+        }
+        if (-not (Test-Path $typesDll)) {
+          throw "Missing file: $typesDll"
+        }
 
     - name: Rewrite ESAPI reference hint paths
       shell: pwsh
