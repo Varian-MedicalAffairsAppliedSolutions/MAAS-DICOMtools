@@ -8,6 +8,10 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: write
+  packages: read
+
 jobs:
   build:
     runs-on: windows-2022
@@ -42,15 +46,43 @@ jobs:
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v2
 
+    - name: Validate package credentials
+      shell: pwsh
+      run: |
+        $userFromSecret = "${{ secrets.ESAPI_NUGET_USERNAME }}"
+        $tokenFromSecret = "${{ secrets.ESAPI_NUGET_TOKEN }}"
+
+        if ([string]::IsNullOrWhiteSpace($tokenFromSecret)) {
+          Write-Host "ESAPI_NUGET_TOKEN secret is not set. Falling back to GITHUB_TOKEN."
+        }
+
+        if ([string]::IsNullOrWhiteSpace($userFromSecret)) {
+          Write-Host "ESAPI_NUGET_USERNAME secret is not set. Falling back to github.actor."
+        }
+
     - name: Add private ESAPI NuGet source
       shell: pwsh
       run: |
+        $nugetUser = "${{ secrets.ESAPI_NUGET_USERNAME }}"
+        if ([string]::IsNullOrWhiteSpace($nugetUser)) {
+          $nugetUser = "${{ github.actor }}"
+        }
+
+        $nugetToken = "${{ secrets.ESAPI_NUGET_TOKEN }}"
+        if ([string]::IsNullOrWhiteSpace($nugetToken)) {
+          $nugetToken = "${{ github.token }}"
+        }
+
+        if ([string]::IsNullOrWhiteSpace($nugetToken)) {
+          throw "No token available for GitHub Packages. Set ESAPI_NUGET_TOKEN repository secret with a PAT that has read:packages."
+        }
+
         nuget source remove -Name varian-github -NonInteractive 2>$null; if ($LASTEXITCODE -ne 0) { Write-Host "Source varian-github did not exist" }
         nuget source add `
           -Name varian-github `
           -Source "https://nuget.pkg.github.com/Varian-MedicalAffairsAppliedSolutions/index.json" `
-          -UserName "${{ secrets.ESAPI_NUGET_USERNAME }}" `
-          -Password "${{ secrets.ESAPI_NUGET_TOKEN }}" `
+          -UserName "$nugetUser" `
+          -Password "$nugetToken" `
           -StorePasswordInClearText `
           -NonInteractive
 
